@@ -1,0 +1,31 @@
+
+
+
+#ref {
+  margin: 10px 0;
+  border: 1px solid #333;
+}
+
+#device {
+  margin: 10px 0;
+  border: 1px dashed #666;
+      height: 120px;
+    width: 240px;
+}
+
+label {
+  display: block;
+  margin: 15px 0;
+}
+
+button {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
