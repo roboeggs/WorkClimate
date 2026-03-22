@@ -1,10 +1,41 @@
-let matrix;
+
+let userInput;
 
 function setup() {
-  matrix = new Matrix (undefined, 480, 240);
-  matrix.setup();
+  let matrix = new Matrix (undefined, 240, 120, 11);
+  userInput = new UserLogic(matrix);
+
+
+  // Запускаем обновление в начале следующей минуты
+  scheduleNextMinuteUpdate();
+}
+
+function scheduleNextMinuteUpdate() {
+  const now = new Date();
+  // Миллисекунды до следующей минуты: 60 000 − (текущие секунды × 1 000 + миллисекунды)
+  const delay = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+
+  setTimeout(() => {
+    // Обновляем данные
+    userInput.UpdateTime();
+    userInput.UpdateTimeTracking();
+    // Перерисовываем экран
+    redraw();
+    // Планируем следующее обновление
+    scheduleNextMinuteUpdate();
+  }, delay);
 }
 
 function draw() {
-  matrix.draw();
+
+
+  // userInput.UpdateTime();
+}
+
+function keyPressed() {
+  userInput.keyHandler.keyPressed(keyCode);
+}
+
+function keyReleased() {
+  userInput.keyHandler.keyReleased(keyCode);
 }
