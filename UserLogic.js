@@ -7,12 +7,36 @@ const DeviceState = {
   DEVICE_STATE_RESTING: 4
 }
 
+const TimeSeparatorState = {
+  TIME_SEPARATOR_OFF: 0,
+  TIME_SEPARATOR_ON: 1
+}
+
+const BlinkState = {
+    BLINK_NONE: 0,
+    BLINK_HOURS: 1,
+    BLINK_MINUTES: 2
+} 
+
 function UserLogic(matrix){
     if (!matrix || typeof matrix.setup !== 'function' || typeof matrix.drawNumber !== 'function') {
       throw new Error('Invalid matrix object');
     }
 
-    this.keyHandler = new MultiKeyHandler();
+    this.brightness = 0x00; // Replacement for 'static' in C
+
+    // Привязываем методы к контексту 'this'
+    this.boundHandleUserInput = this.HandleUserInput.bind(this);
+    this.boundHandleUserTimeMinutes = this.HandleUserTimeMinutes.bind(this);
+    this.boundHandleUserTimeHours = this.HandleUserTimeHours.bind(this);
+
+    // Устанавливаем начальный обработчик
+    this.activeHandler = this.boundHandleUserInput;
+
+    // Передаем в MultiKeyHandler функцию-обертку
+    this.keyHandler = new MultiKeyHandler((btn, type) => {
+      this.activeHandler(btn, type);
+    });
 
     this.matrix = matrix;
     this.currentState = DeviceState.DEVICE_STATE_NORMAL;
@@ -49,84 +73,146 @@ UserLogic.prototype.UpdateTime = function() {
 
 };
 
+UserLogic.prototype.getTimeSeparatorState = function (){
+  return this.separatorState ? TimeSeparatorState.TIME_SEPARATOR_ON : TimeSeparatorState.TIME_SEPARATOR_OFF;
+}
 
- UserLogic.prototype.HandleUserInput = function() {
-  ButtonEvent event0 = ButtonsGetEventByIndex(0);
-  ButtonEvent event1 = ButtonsGetEventByIndex(1);
-  ButtonEvent event2 = ButtonsGetEventByIndex(2);
+UserLogic.prototype.printCurrentTime = function (){
+  this.matrix.drawNumber(this.cachedHour, this.cachedMinute, this.getTimeSeparatorState(), BlinkState.BLINK_NONE);
+}
 
-  if(event0 == BUTTON_EVENT_SHORT_PRESS){ // change timer state
-      if(currentState == DEVICE_STATE_WORKING)
-      {
-          currentState = DEVICE_STATE_RESTING;
-          draw_number(restHours, restMinutes, getTimeSeparatorState(), BLINK_MINUTES);
+UserLogic.prototype.HandleUserInput = function(btnIdx, pressType) {
+  // --- BUTTON 0 (LEFT_ARROW) ---
+  if (btnIdx === 0) {
+    if (pressType === 'short') {
+      if (this.currentState === DeviceState.DEVICE_STATE_WORKING) {
+        this.currentState = DeviceState.DEVICE_STATE_RESTING;
+        this.matrix.drawNumber(this.restHours, this.restMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_MINUTES);
+      } else if (this.currentState === DeviceState.DEVICE_STATE_RESTING || this.currentState === DeviceState.DEVICE_STATE_NORMAL) {
+        this.currentState = DeviceState.DEVICE_STATE_WORKING;
+        this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
       }
-      else if(currentState == DEVICE_STATE_RESTING || currentState == DEVICE_STATE_NORMAL)
-      {
-          currentState = DEVICE_STATE_WORKING;
-          draw_number(workHours, workMinutes, getTimeSeparatorState(), BLINK_HOURS);
-      }
-  }
-  if(event0 == BUTTON_EVENT_LONG_PRESS){ // reset all timers
-      workHours = 0;
-      workMinutes = 0;
-      restHours = 0;
-      restMinutes = 0;
-      currentState = DEVICE_STATE_NORMAL;
-      printCurrentTime();
-  } 
-  if(event1 == BUTTON_EVENT_LONG_PRESS){
-      separatorState = !separatorState;
-      printCurrentTime();
-  } 
-
-  if(event1 == BUTTON_EVENT_SHORT_PRESS){ // show time
-      currentState = DEVICE_STATE_NORMAL;
-      printCurrentTime();
-  }
-  if(event2 == BUTTON_EVENT_SHORT_PRESS){ // change brightness
-      static uint8_t brightness = 0x00;
-      brightness += 0x01;
-      if (brightness > 0x0F) {
-          brightness = 0x00;
-      }
-      set_brightness(brightness);
-      draw_number(0, brightness, TIME_SEPARATOR_OFF, BLINK_NONE);
-
-  }
-  if(event2 == BUTTON_EVENT_LONG_PRESS){ // setup time
-      currentState = DEVICE_STATE_SET_HOURS;
-      print_time(cachedHour, cachedMinute);
+    } else { // LONG PRESS
+      this.workHours = 0; this.workMinutes = 0;
+      this.restHours = 0; this.restMinutes = 0;
+      this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+      this.printCurrentTime();
+    }
   }
 
+  // --- BUTTON 1 (RIGHT_ARROW) ---
+  if (btnIdx === 1) {
+    if (pressType === 'short') {
+      this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+      this.printCurrentTime();
+    } else { // LONG PRESS
+      this.separatorState = !this.separatorState;
+      console.log(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
+      this.printCurrentTime();
+    }
+  }
+
+  // --- BUTTON 2 (DOWN_ARROW) ---
+  if (btnIdx === 2) {
+    if (pressType === 'short') {
+      this.brightness = (this.brightness + 1) & 0x0F; // Cycle 0-15
+      // this.set_brightness(this.brightness);
+      this.matrix.drawNumber(0, this.brightness, TimeSeparatorState.TIME_SEPARATOR_OFF, BlinkState.BLINK_NONE);
+    } else { // LONG PRESS
+      this.currentState = DeviceState.DEVICE_STATE_SET_HOURS;
+      this.activeHandler = this.boundHandleUserTimeHours; // МЕНЯЕМ ОБРАБОТЧИК
+      this.matrix.printTime(this.cachedHour, this.cachedMinute);
+    }
+  }
 };
- UserLogic.prototype.setTime = (hours, minutes, seconds) => {};
- UserLogic.prototype.HandleUserTimeHours = () => {};
- UserLogic.prototype.HandleUserTimeMinutes = () => {};
 
- UserLogic.prototype.UpdateTimeTracking = () => {};
+UserLogic.prototype.setTime = (hours, minutes, seconds) => {};
+UserLogic.prototype.HandleUserTimeHours = function(btnIdx, pressType) {
+    if (btnIdx === 0 && pressType === 'short') {
+        this.cachedHour = (this.cachedHour <= 0) ? 23 : this.cachedHour - 1;
+    } 
+    if (btnIdx === 1 && pressType === 'short') {
+        this.cachedHour = (this.cachedHour >= 23) ? 0 : this.cachedHour + 1;
+    }
+    
+    // Переход к минутам по долгому нажатию кнопки 2
+    if (btnIdx === 1 && pressType === 'long') {
+        this.currentState = DeviceState.DEVICE_STATE_SET_MINUTES;
+        this.activeHandler = this.boundHandleUserTimeMinutes;
+        this.saveToRTC(this.cachedMinute); // Using private method
 
- UserLogic.prototype.MyHandle = function()  {
+    }
 
-  switch (this.currentState) {
-    case DeviceState.DEVICE_STATE_NORMAL:
-      this.HandleUserInput();
-      break;
-    case DeviceState.DEVICE_STATE_SET_HOURS:
-      this.HandleUserTimeHours();
-      break;
-    case DeviceState.DEVICE_STATE_SET_MINUTES:
-      this.HandleUserTimeMinutes();
-      break;
-    case DeviceState.DEVICE_STATE_WORKING:
-      this.HandleUserInput();
-      break;
-    case DeviceState.DEVICE_STATE_RESTING:
-      this.HandleUserInput();
-      break;
+    this.matrix.printTime(this.cachedHour, this.cachedMinute);
+};
 
-    default:
-        break;
+UserLogic.prototype.HandleUserTimeMinutes = function(btnIdx, pressType) {
+  // BUTTON 0 (LEFT_ARROW)
+  if (btnIdx === 0) {
+    if (pressType === 'short') {
+      this.cachedMinute--;
+      if (this.cachedMinute < 0) {
+        this.cachedMinute = 59;
+      }
+    } else { // LONG PRESS
+      this.currentState = DEVICE_STATE_SET_HOURS;
+      this.activeHandler = this.boundHandleUserTimeHours; // ВОЗВРАЩАЕМ ОБРАБОТЧИК
+
+      this.saveToRTC(this.cachedMinute); // Using private method
+    }
   }
 
+  // BUTTON 1 (RIGHT_ARROW)
+  if (btnIdx === 1) {
+    if (pressType === 'short') {
+      this.cachedMinute++;
+      if (this.cachedMinute > 59) {
+        this.cachedMinute = 0;
+      }
+    } else { // LONG PRESS
+      this.currentState = DEVICE_STATE_NORMAL;
+      this.activeHandler = this.boundHandleUserInput; // ВОЗВРАЩАЕМ ОБРАБОТЧИК
+      this.saveToRTC(this.cachedMinute); // Using private method
+    }
+  }
+
+  // Update the display (this uses your translated print_time from earlier)
+  this.matrix.printTime(this.cachedHour, this.cachedMinute);
+};
+
+
+UserLogic.prototype.saveToRTC = function(minutes) {
+    console.log(`Saving ${minutes} to DS1307...`);
+    // Your actual DS1307_SetMinute(minutes) logic goes here
+};
+
+ UserLogic.prototype.UpdateTimeTracking = function() {
+    if (this.currentState == DeviceState.DEVICE_STATE_WORKING) {
+        this.workMinutes++;
+        if (this.workMinutes >= 60) {
+            this.workMinutes = 0;
+            if (this.workHours >= 99) {
+                this.workHours = 0;
+            }
+            else{
+                this.workHours++;
+            }
+        }
+        this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
+    } else if (this.currentState == DeviceState.DEVICE_STATE_RESTING) {
+        this.restMinutes++;
+        if (this.restMinutes >= 60) {
+            this.restMinutes = 0;
+            if(this.restHours >= 99) {
+                this.restHours = 0;
+            }
+            else{
+                this.restHours++;
+            }
+        }
+        this.matrix.drawNumber(this.restHours, this.restMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_MINUTES);
+    } else if (this.currentState == DeviceState.DEVICE_STATE_NORMAL) {
+        // Disolay the current time from the DS1307
+        this.printCurrentTime();
+    }
  };

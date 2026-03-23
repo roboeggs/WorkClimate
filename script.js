@@ -8,13 +8,13 @@ function setup() {
 
   // Запускаем обновление в начале следующей минуты
   scheduleNextMinuteUpdate();
+  userInput.UpdateTime();
 }
 
 function scheduleNextMinuteUpdate() {
   const now = new Date();
   // Миллисекунды до следующей минуты: 60 000 − (текущие секунды × 1 000 + миллисекунды)
   const delay = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
-
   setTimeout(() => {
     // Обновляем данные
     userInput.UpdateTime();

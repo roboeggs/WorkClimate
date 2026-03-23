@@ -33,6 +33,13 @@ class Matrix{
         this.matrixWidth = matrixWidth;
         this.matrixHeight = matrixHeight;
         this.diameter = diameter;       // диаметр кружка
+        
+        // Вычисляем шаг между центрами кружков
+        this.stepX = matrixWidth / this.#circleCountX;
+        this.stepY = matrixHeight / this.#circleCountY;
+
+        this.lastSeparatorUpdate = 0;
+        this.separatorToggleState = false;
     }
     setup(){
         createCanvas(this.matrixWidth, this.matrixHeight);
@@ -44,10 +51,6 @@ class Matrix{
         // Заливаем фон чёрным
         background(0);
 
-
-        // Вычисляем шаг между центрами кружков
-        const stepX = this.matrixWidth / this.#circleCountX;
-        const stepY = this.matrixHeight / this.#circleCountY;
 
         // Рисуем сетку кружков
         for (let row = 0; row < this.#circleCountY; row++) {
@@ -64,8 +67,8 @@ class Matrix{
                 const bit = (byte >> bitIndex) & 1;
 
                 // Координаты кружка
-                const x = col * stepX + stepX / 2;
-                const y = row * stepY + stepY / 2;
+                const x = col * this.stepX + this.stepX / 2;
+                const y = row * this.stepY + this.stepY / 2;
 
                 // Выбор цвета
                 if (bit === 1) {
@@ -107,10 +110,6 @@ class Matrix{
 
 
     drawNumber(hours, minutes, separatorState, blinkDigitsState) {
-        const TIME_SEPARATOR_ON = 1;
-        const BLINK_HOURS = 1;
-        const BLINK_MINUTES = 2;
-
         let number = hours * 100 + minutes;
 
         // Проверка корректности времени
@@ -136,7 +135,7 @@ class Matrix{
             let combined = (digit1Data >> matrixNum) | (digit2Data >> (4 + matrixNum));
 
             // Добавляем разделитель (двоеточие), если он должен быть включён
-            if (separatorState === TIME_SEPARATOR_ON && (i === 2 || i === 3 || i === 5 || i === 6)) {
+            if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON && (i === 2 || i === 3 || i === 5 || i === 6)) {
                 combined |= 0x01 << (matrixNum * 7);
             }
 
@@ -145,8 +144,8 @@ class Matrix{
             }
 
             // Управление миганием: часы или минуты
-            if ((blinkDigitsState === BLINK_HOURS && matrixNum === 1) ||
-                (blinkDigitsState === BLINK_MINUTES && matrixNum === 0)) {
+            if ((blinkDigitsState === BlinkState.BLINK_HOURS && matrixNum === 1) ||
+                (blinkDigitsState === BlinkState.BLINK_MINUTES && matrixNum === 0)) {
                 this.maxWrite(8 * (matrixNum + 1), 0xFF); // Все светодиоды строки включены
             } else {
                 this.maxWrite(8 * (matrixNum + 1), 0x00); // Все светодиоды строки выключены
@@ -156,5 +155,26 @@ class Matrix{
 
     }
 
+    #getToggleSeparatorState() {
+        let currentTime = millis();
+
+        // Check if 1000 ms have passed
+        if (currentTime - this.lastSeparatorUpdate >= 1000) {
+            this.separatorToggleState = !this.separatorToggleState;
+            this.lastSeparatorUpdate = currentTime;
+        }
+
+        return this.separatorToggleState;
+    }
+
+    printTime(hours, minutes) {
+        // Determine which separator constant to use
+        const separator = this.#getToggleSeparatorState() 
+                        ? TimeSeparatorState.TIME_SEPARATOR_ON 
+                        : TimeSeparatorState.TIME_SEPARATOR_OFF;
+
+        // Call your draw function (using this.matrix if that's where it lives)
+        this.drawNumber(hours, minutes, separator, BlinkState.BLINK_NONE);
+    }
 
 }

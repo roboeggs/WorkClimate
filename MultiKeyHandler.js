@@ -1,7 +1,8 @@
 class MultiKeyHandler {
-  constructor() {
+  constructor(callback) {
     this.keys = {};
     this.LONG_PRESS_THRESHOLD = 1000; // 1 секунда для долгого нажатия
+    this.onButtonAction = callback;
   }
 
   keyPressed(keyCode) {
@@ -65,35 +66,15 @@ class MultiKeyHandler {
   }
 
   handleSpecificButton(keyCode, pressType) {
-    // Здесь — ваша логика для каждой кнопки
-    switch (keyCode) {
-      case LEFT_ARROW:
-        if (pressType === 'short') {
-          console.log("Левая стрелка: короткое нажатие — уменьшаем значение");
-          // Ваша логика для короткого нажатия влево
-        } else {
-          console.log("Левая стрелка: долгое нажатие — сбрасываем значение");
-          // Ваша логика для долгого нажатия влево
-        }
-        break;
-      case RIGHT_ARROW:
-        if (pressType === 'short') {
-          console.log("Правая стрелка: короткое нажатие — увеличиваем значение");
-          // Ваша логика для короткого нажатия вправо
-        } else {
-          console.log("Правая стрелка: долгое нажатие — переходим в другой режим");
-          // Ваша логика для долгого нажатия вправо
-        }
-        break;
-      case DOWN_ARROW:
-        if (pressType === 'short') {
-          console.log("Нижняя стрелка: короткое нажатие — подтверждаем");
-          // Ваша логика для короткого нажатия вниз
-        } else {
-          console.log("Нижняя стрелка: долгое нажатие — отменяем");
-          // Ваша логика для долгого нажатия вниз
-        }
-        break;
+    // Map keyboard keys to logical button indices (0, 1, 2) from your C code
+    let buttonIndex = -1;
+    if (keyCode === LEFT_ARROW) buttonIndex = 0;
+    if (keyCode === DOWN_ARROW) buttonIndex = 1;
+    if (keyCode === RIGHT_ARROW) buttonIndex = 2;
+
+    if (buttonIndex !== -1 && this.onButtonAction) {
+      // Send the button index and the press type ('short' or 'long') to UserLogic
+      this.onButtonAction(buttonIndex, pressType);
     }
   }
 }
