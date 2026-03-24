@@ -117,15 +117,8 @@ class Matrix {
        ORIENTATION
     ===================================================== */
 
-    setOrientation(orientation) {
-
-        const normalizedOrientation =
-            this.#normalizeOrientation(orientation);
-
-        if (this.orientation === normalizedOrientation)
-            return;
-
-        this.orientation = normalizedOrientation;
+    changeOrientation() {
+        this.orientation = !this.orientation;
 
         this.#recalculateCanvasSize();
 
@@ -178,18 +171,6 @@ class Matrix {
         return { x, y };
     }
 
-    #getBitmapBit(virtualRow, virtualCol) {
-
-        const lowByte =
-            this.#bitmap[(this.#LEDS_PER_MODULE * this.#NUM_DEV) - 1 - virtualRow];
-
-        const highByte =
-            this.#bitmap[this.#LEDS_PER_MODULE - 1 - virtualRow];
-
-        const byte = (highByte << 8) | lowByte;
-
-        return (byte >> virtualCol) & 1;
-    }
 
     /* =====================================================
        DRAW

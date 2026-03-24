@@ -1,49 +1,78 @@
 class MultiKeyHandler {
   constructor(callback) {
     this.keys = {};
-    this.LONG_PRESS_THRESHOLD = 1000; // 1 секунда для долгого нажатия
+    this.LONG_PRESS_THRESHOLD = 1000;
     this.onButtonAction = callback;
+
+    this.comboHandled = false; // <--- новое
   }
 
   keyPressed(keyCode) {
-    // Обрабатываем только стрелки влево, вправо, вниз
-    if (![LEFT_ARROW, RIGHT_ARROW, DOWN_ARROW].includes(keyCode)) {
-      return;
-    }
+    if (![LEFT_ARROW, RIGHT_ARROW, DOWN_ARROW].includes(keyCode)) return;
 
     if (!this.keys[keyCode]) {
       this.keys[keyCode] = {
         pressed: true,
         pressTime: millis(),
-        handled: false
+        handled: false,
+        inCombo: false
       };
     }
+
+    this.comboHandled = false; // сбрасываем при новом нажатии
   }
 
   keyReleased(keyCode) {
     const keyData = this.keys[keyCode];
+      // Если клавиша участвовала в комбо — игнорируем
+    if (!keyData) return;
+    if (keyData.inCombo) {
+      delete this.keys[keyCode];
+      return;
+    }
     if (keyData) {
       const duration = millis() - keyData.pressTime;
 
-      if (duration >= this.LONG_PRESS_THRESHOLD && !keyData.handled) {
-        this.onLongPress(keyCode, duration);
-      } else if (!keyData.handled) {
-        this.onShortPress(keyCode, duration);
+      if (!this.comboHandled) {
+        if (duration >= this.LONG_PRESS_THRESHOLD && !keyData.handled) {
+          this.onLongPress(keyCode, duration);
+        } else if (!keyData.handled) {
+          this.onShortPress(keyCode, duration);
+        }
       }
-      delete this.keys[keyCode]; // Очищаем данные после обработки
+
+      delete this.keys[keyCode];
     }
   }
 
   update() {
-    // Проверяем долго удерживаемые клавиши (если не отпущены)
     const currentTime = millis();
-    for (const keyCode in this.keys) {
-      const keyData = this.keys[keyCode];
-      if (!keyData.handled && currentTime - keyData.pressTime >= this.LONG_PRESS_THRESHOLD) {
-        keyData.handled = true;
-        this.onLongPress(keyCode, currentTime - keyData.pressTime);
+
+    const pressedKeys = Object.keys(this.keys).map(k => Number(k));
+
+    // === Проверка комбинации из двух клавиш ===
+    if (pressedKeys.length === 2 && !this.comboHandled) {
+      const [k1, k2] = pressedKeys;
+      const d1 = currentTime - this.keys[k1].pressTime;
+      const d2 = currentTime - this.keys[k2].pressTime;
+
+      if (d1 >= this.LONG_PRESS_THRESHOLD && d2 >= this.LONG_PRESS_THRESHOLD) {
+        this.comboHandled = true;
+
+        console.log(`LONG COMBO: ${this.getPressedButton(k1)} + ${this.getPressedButton(k2)}`);
+
+        this.onButtonAction(this.getPressedButton(k1) + this.getPressedButton(k2) + 2, 'combo');
+
+        // помечаем обе клавиши как обработанные
+        this.keys[k1].handled = true;
+        this.keys[k2].handled = true;
+        this.keys[k1].inCombo = true;
+        this.keys[k2].inCombo = true;
+        return;
       }
     }
+
+  
   }
 
   onShortPress(keyCode, duration) {
@@ -65,15 +94,18 @@ class MultiKeyHandler {
     }
   }
 
-  handleSpecificButton(keyCode, pressType) {
-    // Map keyboard keys to logical button indices (0, 1, 2) from your C code
+  getPressedButton(keyCode) {
     let buttonIndex = -1;
     if (keyCode === LEFT_ARROW) buttonIndex = 0;
     if (keyCode === DOWN_ARROW) buttonIndex = 1;
     if (keyCode === RIGHT_ARROW) buttonIndex = 2;
+    return buttonIndex;
+  }
+
+  handleSpecificButton(keyCode, pressType) {
+    let buttonIndex = this.getPressedButton(keyCode);
 
     if (buttonIndex !== -1 && this.onButtonAction) {
-      // Send the button index and the press type ('short' or 'long') to UserLogic
       this.onButtonAction(buttonIndex, pressType);
     }
   }

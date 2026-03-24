@@ -18,6 +18,28 @@ const BlinkState = {
   BLINK_MINUTES: 2
 }
 
+const AppMode = {
+  CLOCK: 'clock',
+  TETRIS: 'tetris'
+}
+
+class ClockMode extends BaseMode {
+  enter() {
+    this.ctx.activeHandler = this.ctx.boundHandleUserInput;
+    this.ctx.currentState = DeviceState.DEVICE_STATE_NORMAL;
+    this.ctx.printCurrentTime();
+  }
+
+  handleInput(btnIdx, pressType) {
+    this.ctx.activeHandler(btnIdx, pressType);
+  }
+
+  onMinute() {
+    this.ctx.UpdateTime();
+    this.ctx.UpdateTimeTracking();
+  }
+}
+
 function UserLogic(matrix) {
   if (!matrix || typeof matrix.setup !== 'function' || typeof matrix.drawNumber !== 'function') {
     throw new Error('Invalid matrix object');
@@ -33,11 +55,6 @@ function UserLogic(matrix) {
   // Устанавливаем начальный обработчик
   this.activeHandler = this.boundHandleUserInput;
 
-  // Передаем в MultiKeyHandler функцию-обертку
-  this.keyHandler = new MultiKeyHandler((btn, type) => {
-    this.activeHandler(btn, type);
-  });
-
   this.matrix = matrix;
   this.currentState = DeviceState.DEVICE_STATE_NORMAL;
 
@@ -51,6 +68,19 @@ function UserLogic(matrix) {
 
   this.separatorState = true;
   this.matrix.setup();
+
+  this.modes = {
+    [AppMode.CLOCK]: new ClockMode(this),
+    [AppMode.TETRIS]: new TetrisMode(this)
+  };
+
+  this.currentMode = this.modes[AppMode.CLOCK];
+  this.currentMode.enter(null);
+
+  // Передаем в MultiKeyHandler функцию-обертку
+  this.keyHandler = new MultiKeyHandler((btn, type) => {
+    this.currentMode.handleInput(btn, type);
+  });
 
   // Запускаем мигание раз в 500мс (полный цикл 1 сек)
   setInterval(() => {
@@ -134,7 +164,41 @@ UserLogic.prototype.HandleUserInput = function (btnIdx, pressType) {
       this.printCurrentTime();
     }
   }
+
+  if(pressType === 'combo'){
+    switch(btnIdx){
+      case 3: // LEFT + DOWN
+        this.matrix.changeOrientation();
+        break;
+      case 4: // LEFT + RIGHT
+        this.switchMode(AppMode.TETRIS);
+        break;  
+    }
+  }
+
+  
 };
+
+  UserLogic.prototype.switchMode = function (nextModeName) {
+    const nextMode = this.modes[nextModeName];
+
+    if (!nextMode || nextMode === this.currentMode) {
+      return;
+    }
+
+    const prevMode = this.currentMode;
+    prevMode.exit(nextModeName);
+    this.currentMode = nextMode;
+    this.currentMode.enter(prevMode);
+  };
+
+  UserLogic.prototype.tick = function () {
+    this.currentMode.tick();
+  };
+
+  UserLogic.prototype.onMinute = function () {
+    this.currentMode.onMinute();
+  };
 
 UserLogic.prototype.setTime = (hours, minutes, seconds) => { };
 UserLogic.prototype.HandleUserTimeHours = function (btnIdx, pressType) {
