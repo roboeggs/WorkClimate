@@ -1,113 +1,271 @@
-class Matrix{
-    #circleCountX = 16;
-    #circleCountY = 8;
-    #colorLedOFF = 80;
+const Orientation = {
+    HORIZONTAL: 0, // 2 модуля в ряд
+    VERTICAL: 1    // 2 модуля колонкой
+};
+
+class Matrix {
+
+    /* =====================================================
+       HARDWARE CONFIG
+    ===================================================== */
+
+    #LEDS_PER_MODULE = 8;
     #NUM_DEV = 2;
-    #bitmap = Array(this.#circleCountX).fill(0x0);
+
+    #colorLedOFF = 80;
+
+    // framebuffer (НЕ зависит от orientation)
+    #bitmap = Array(16).fill(0x0);
 
     #digitPatterns = [
-        // Цифра 0
         [0xe0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xe0],
-        // Цифра 1
         [0xe0, 0x40, 0x40, 0x40, 0x40, 0x60, 0x40],
-        // Цифра 2
         [0xe0, 0x20, 0x20, 0xe0, 0x80, 0x80, 0xe0],
-        // Цифра 3
         [0xe0, 0x80, 0x80, 0xe0, 0x80, 0x80, 0xe0],
-        // Цифра 4
         [0x80, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xa0],
-        // Цифра 5
         [0xe0, 0x80, 0x80, 0xe0, 0x20, 0x20, 0xe0],
-        // Цифра 6
         [0xe0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0xe0],
-        // Цифра 7
         [0x20, 0x20, 0x20, 0x40, 0x80, 0x80, 0xe0],
-        // Цифра 8
         [0xe0, 0xa0, 0xa0, 0xe0, 0xa0, 0xa0, 0xe0],
-        // Цифра 9
         [0xe0, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xe0]
     ];
 
-    constructor(colorLed = 'red', matrixWidth, matrixHeight, diameter) {
-        this.colorLedON = colorLed;
-        this.matrixWidth = matrixWidth;
-        this.matrixHeight = matrixHeight;
-        this.diameter = diameter;       // диаметр кружка
-        
-        // Вычисляем шаг между центрами кружков
-        this.stepX = matrixWidth / this.#circleCountX;
-        this.stepY = matrixHeight / this.#circleCountY;
+    #normalizeOrientation(orientation) {
 
-        this.lastSeparatorUpdate = 0;
-        this.separatorToggleState = false;
-    }
-    setup(){
-        createCanvas(this.matrixWidth, this.matrixHeight);
-        noLoop(); // рисуем один раз
-    }
+        if (orientation === Orientation.HORIZONTAL ||
+            orientation === Orientation.VERTICAL) {
+            return orientation;
+        }
 
-    
-    draw(){
-        // Заливаем фон чёрным
-        background(0);
+        if (typeof orientation === "string") {
+            const value = orientation.trim().toLowerCase();
 
-
-        // Рисуем сетку кружков
-        for (let row = 0; row < this.#circleCountY; row++) {
-            // Берём строку снизу вверх
-            const lowByte = this.#bitmap[this.#circleCountX - 1 - row];
-            const highByte= this.#bitmap[this.#circleCountY - 1 - row];
-            
-            const byte = (highByte << 8) | lowByte;
-            // console.log(byte.toString(2));
-            for (let col = 0; col < this.#circleCountX; col++) {
-
-                // Берём бит справа налево
-                const bitIndex = col;
-                const bit = (byte >> bitIndex) & 1;
-
-                // Координаты кружка
-                const x = col * this.stepX + this.stepX / 2;
-                const y = row * this.stepY + this.stepY / 2;
-
-                // Выбор цвета
-                if (bit === 1) {
-                    fill(this.colorLedON);
-                } else {
-                    fill(this.#colorLedOFF);
-                }
-                noStroke();
-                circle(x, y, this.diameter);
+            if (value === "horizontal") {
+                return Orientation.HORIZONTAL;
             }
-        } 
-    }
 
-    maxWrite(row, data) {
-        // Определяем целевое устройство (каждое управляет 8 строками)
-        const devTarget = Math.floor((row - 1) / 8);
-        const offset = devTarget * 8;
-
-        // Буфер для двухбайтовых данных (адрес строки + данные)
-        let txData = [0, 0];
-
-        for (let dev = 0; dev < this.#NUM_DEV; dev++) {
-            if (dev === devTarget) {
-                // Отправляем данные для целевого устройства
-                txData[0] = row - offset; // Адрес строки (high byte)
-                txData[1] = data;         // Данные (low byte)
-
-                this.#bitmap[(txData[0] - 1) + (dev * 8)] = txData[1];
-            } else {
-                // Для остальных устройств отправляем команду «no‑op»
-                txData[0] = 0x00; // No‑op register
-                txData[1] = 0x00; // No‑op data
+            if (value === "vertical") {
+                return Orientation.VERTICAL;
             }
         }
 
-        // this.draw();
-
+        return Orientation.HORIZONTAL;
     }
 
+    /* =====================================================
+       CONSTRUCTOR
+    ===================================================== */
+
+    constructor(
+        colorLed = "red",
+        moduleSize = 200,
+        orientation = Orientation.HORIZONTAL
+    ) {
+
+        this.colorLedON = colorLed;
+        this.moduleSize = moduleSize;
+        this.orientation =
+            this.#normalizeOrientation(orientation);
+
+        // расстояние между LED
+        this.step = this.moduleSize / this.#LEDS_PER_MODULE;
+
+        // диаметр кружка LED
+        this.diameter = this.step * 0.8;
+
+        // вычисляем размер canvas
+        this.#recalculateCanvasSize();
+    }
+
+    /* =====================================================
+       CANVAS GEOMETRY
+    ===================================================== */
+
+    #getLogicalSize() {
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+            return { cols: 16, rows: 8 };
+        }
+
+        return { cols: 8, rows: 16 };
+    }
+
+    #recalculateCanvasSize() {
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+
+            // [8x8][8x8]
+            this.canvasWidth =
+                this.moduleSize * this.#NUM_DEV;
+
+            this.canvasHeight =
+                this.moduleSize;
+
+        } else {
+
+            // [8x8]
+            // [8x8]
+            this.canvasWidth =
+                this.moduleSize;
+
+            this.canvasHeight =
+                this.moduleSize * this.#NUM_DEV;
+        }
+    }
+
+    /* =====================================================
+       P5 SETUP
+    ===================================================== */
+
+    setup() {
+        createCanvas(this.canvasWidth, this.canvasHeight);
+        noLoop();
+    }
+
+    /* =====================================================
+       ORIENTATION
+    ===================================================== */
+
+    setOrientation(orientation) {
+
+        const normalizedOrientation =
+            this.#normalizeOrientation(orientation);
+
+        if (this.orientation === normalizedOrientation)
+            return;
+
+        this.orientation = normalizedOrientation;
+
+        this.#recalculateCanvasSize();
+
+        resizeCanvas(this.canvasWidth, this.canvasHeight);
+
+        redraw();
+    }
+
+    /* =====================================================
+       MODULE RESIZE
+    ===================================================== */
+
+    resizeModule(moduleSize) {
+
+        this.moduleSize = moduleSize;
+
+        this.step =
+            this.moduleSize / this.#LEDS_PER_MODULE;
+
+        this.diameter = this.step * 0.8;
+
+        this.#recalculateCanvasSize();
+
+        resizeCanvas(this.canvasWidth, this.canvasHeight);
+
+        redraw();
+    }
+
+    /* =====================================================
+       PIXEL POSITION
+    ===================================================== */
+
+    #getPixelPosition(row, col) {
+
+        let x, y;
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+
+            // логическая матрица 16x8
+            x = col * this.step + this.step / 2;
+            y = row * this.step + this.step / 2;
+
+        } else {
+
+            // логическая матрица 8x16
+            x = col * this.step + this.step / 2;
+            y = row * this.step + this.step / 2;
+        }
+
+        return { x, y };
+    }
+
+    #getBitmapBit(virtualRow, virtualCol) {
+
+        const lowByte =
+            this.#bitmap[(this.#LEDS_PER_MODULE * this.#NUM_DEV) - 1 - virtualRow];
+
+        const highByte =
+            this.#bitmap[this.#LEDS_PER_MODULE - 1 - virtualRow];
+
+        const byte = (highByte << 8) | lowByte;
+
+        return (byte >> virtualCol) & 1;
+    }
+
+    /* =====================================================
+       DRAW
+    ===================================================== */
+
+    draw() {
+
+        background(0);
+
+        const { cols, rows } = this.#getLogicalSize();
+
+        for (let row = 0; row < rows; row++) {
+
+            for (let col = 0; col < cols; col++) {
+
+                let virtualRow;
+                let virtualCol;
+
+                if (this.orientation === Orientation.HORIZONTAL) {
+
+                    virtualRow = row;
+                    virtualCol = col;
+
+                } else {
+
+                    // В вертикальном режиме складываем 2 модуля столбиком:
+                    // верх = левая половина 16x8, низ = правая половина 16x8.
+                    virtualRow = row % this.#LEDS_PER_MODULE;
+                    virtualCol = col +
+                        (row >= this.#LEDS_PER_MODULE ? this.#LEDS_PER_MODULE : 0);
+                }
+
+                const bit = this.#getBitmapBit(virtualRow, virtualCol);
+
+                const { x, y } =
+                    this.#getPixelPosition(row, col);
+
+                fill(bit ? this.colorLedON : this.#colorLedOFF);
+                noStroke();
+                circle(x, y, this.diameter);
+            }
+        }
+    }
+
+    /* =====================================================
+       MAX7219 WRITE
+    ===================================================== */
+
+    maxWrite(row, data) {
+
+        const devTarget = Math.floor((row - 1) / 8);
+        const offset = devTarget * 8;
+
+        for (let dev = 0; dev < this.#NUM_DEV; dev++) {
+
+            if (dev === devTarget) {
+
+                const addr = row - offset;
+
+                this.#bitmap[(addr - 1) + (dev * 8)] = data;
+            }
+        }
+    }
+
+    /* =====================================================
+       CLOCK DRAWING
+    ===================================================== */
 
     drawNumber(hours, minutes, separatorState, blinkDigitsState) {
         let number = hours * 100 + minutes;
@@ -154,27 +312,4 @@ class Matrix{
         this.draw();
 
     }
-
-    #getToggleSeparatorState() {
-        let currentTime = millis();
-
-        // Check if 1000 ms have passed
-        if (currentTime - this.lastSeparatorUpdate >= 1000) {
-            this.separatorToggleState = !this.separatorToggleState;
-            this.lastSeparatorUpdate = currentTime;
-        }
-
-        return this.separatorToggleState;
-    }
-
-    printTime(hours, minutes) {
-        // Determine which separator constant to use
-        const separator = this.#getToggleSeparatorState() 
-                        ? TimeSeparatorState.TIME_SEPARATOR_ON 
-                        : TimeSeparatorState.TIME_SEPARATOR_OFF;
-
-        // Call your draw function (using this.matrix if that's where it lives)
-        this.drawNumber(hours, minutes, separator, BlinkState.BLINK_NONE);
-    }
-
 }

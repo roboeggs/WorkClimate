@@ -2,7 +2,7 @@
 let userInput;
 
 function setup() {
-  let matrix = new Matrix (undefined, 240, 120, 11);
+  let matrix = new Matrix (undefined, 240, undefined);
   userInput = new UserLogic(matrix);
 
 
