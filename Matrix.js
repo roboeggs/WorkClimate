@@ -81,15 +81,6 @@ class Matrix {
        CANVAS GEOMETRY
     ===================================================== */
 
-    #getLogicalSize() {
-
-        if (this.orientation === Orientation.HORIZONTAL) {
-            return { cols: 16, rows: 8 };
-        }
-
-        return { cols: 8, rows: 16 };
-    }
-
     #recalculateCanvasSize() {
 
         if (this.orientation === Orientation.HORIZONTAL) {
@@ -180,8 +171,8 @@ class Matrix {
         } else {
 
             // логическая матрица 8x16
-            x = col * this.step + this.step / 2;
-            y = row * this.step + this.step / 2;
+            x = this.moduleSize - row * this.step - this.step / 2;
+            y = col * this.step + this.step / 2;
         }
 
         return { x, y };
@@ -208,31 +199,21 @@ class Matrix {
 
         background(0);
 
-        const { cols, rows } = this.#getLogicalSize();
 
-        for (let row = 0; row < rows; row++) {
+        for (let row = 0; row < this.#LEDS_PER_MODULE; row++) {
+            // Берём строку снизу вверх
+            const highByte = this.#bitmap[this.#LEDS_PER_MODULE - 1 - row];
+            const lowByte = this.#bitmap[this.#LEDS_PER_MODULE * 2 - 1 - row];
 
-            for (let col = 0; col < cols; col++) {
+            const byte = (highByte << 8) | lowByte;
 
-                let virtualRow;
-                let virtualCol;
+            for (let col = 0; col < this.#LEDS_PER_MODULE*2; col++) {
 
-                if (this.orientation === Orientation.HORIZONTAL) {
+                // Берём бит справа налево
+                const bitIndex = col;
+                const bit = (byte >> bitIndex) & 1;
 
-                    virtualRow = row;
-                    virtualCol = col;
-
-                } else {
-
-                    // В вертикальном режиме складываем 2 модуля столбиком:
-                    // верх = левая половина 16x8, низ = правая половина 16x8.
-                    virtualRow = row % this.#LEDS_PER_MODULE;
-                    virtualCol = col +
-                        (row >= this.#LEDS_PER_MODULE ? this.#LEDS_PER_MODULE : 0);
-                }
-
-                const bit = this.#getBitmapBit(virtualRow, virtualCol);
-
+                // Координаты кружка
                 const { x, y } =
                     this.#getPixelPosition(row, col);
 
