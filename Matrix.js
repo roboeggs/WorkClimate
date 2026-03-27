@@ -188,7 +188,7 @@ class Matrix {
 
             const byte = (highByte << 8) | lowByte;
 
-            for (let col = 0; col < this.#LEDS_PER_MODULE*2; col++) {
+            for (let col = 0; col < this.#LEDS_PER_MODULE * 2; col++) {
 
                 // Берём бит справа налево
                 const bitIndex = col;
@@ -203,6 +203,9 @@ class Matrix {
                 circle(x, y, this.diameter);
             }
         }
+        // this.#bitmap.forEach((num, index) => {
+        //     console.log(`Элемент ${index}: 0b${num.toString(2).padStart(8, '0')}`);
+        // });
     }
 
     /* =====================================================
@@ -247,20 +250,20 @@ class Matrix {
 
         for (let matrixNum = 0; matrixNum < this.#NUM_DEV; matrixNum++) {
             for (let i = 1; i < 8; i++) {
-            // Получаем данные для двух цифр, отображаемых на текущем устройстве
-            const digit1Data = this.#digitPatterns[units[matrixNum * 2]][i - 1];
-            const digit2Data = this.#digitPatterns[units[matrixNum * 2 + 1]][i - 1];
+                // Получаем данные для двух цифр, отображаемых на текущем устройстве
+                const digit1Data = this.#digitPatterns[units[matrixNum * 2]][i - 1];
+                const digit2Data = this.#digitPatterns[units[matrixNum * 2 + 1]][i - 1];
 
-            // Комбинируем данные с учётом сдвига для правильного позиционирования
-            let combined = (digit1Data >> matrixNum) | (digit2Data >> (4 + matrixNum));
+                // Комбинируем данные с учётом сдвига для правильного позиционирования
+                let combined = (digit1Data >> matrixNum) | (digit2Data >> (4 + matrixNum));
 
-            // Добавляем разделитель (двоеточие), если он должен быть включён
-            if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON && (i === 2 || i === 3 || i === 5 || i === 6)) {
-                combined |= 0x01 << (matrixNum * 7);
-            }
+                // Добавляем разделитель (двоеточие), если он должен быть включён
+                if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON && (i === 2 || i === 3 || i === 5 || i === 6)) {
+                    combined |= 0x01 << (matrixNum * 7);
+                }
 
-            // Отправляем данные в соответствующую строку матрицы
-            this.maxWrite(i + (matrixNum * 8), combined);
+                // Отправляем данные в соответствующую строку матрицы
+                this.maxWrite(i + (matrixNum * 8), combined);
             }
 
             // Управление миганием: часы или минуты

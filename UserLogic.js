@@ -51,6 +51,8 @@ function UserLogic(matrix) {
   this.boundHandleUserInput = this.HandleUserInput.bind(this);
   this.boundHandleUserTimeMinutes = this.HandleUserTimeMinutes.bind(this);
   this.boundHandleUserTimeHours = this.HandleUserTimeHours.bind(this);
+  this.boundHandleGameTetris = this.HandleUserTimeHours.bind(this);
+
 
   // Устанавливаем начальный обработчик
   this.activeHandler = this.boundHandleUserInput;
@@ -74,7 +76,7 @@ function UserLogic(matrix) {
     [AppMode.TETRIS]: new TetrisMode(this)
   };
 
-  this.currentMode = this.modes[AppMode.CLOCK];
+  this.currentMode = this.modes[AppMode.TETRIS];
   this.currentMode.enter(null);
 
   // Передаем в MultiKeyHandler функцию-обертку
