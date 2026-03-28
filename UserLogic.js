@@ -45,7 +45,7 @@ function UserLogic(matrix) {
     throw new Error('Invalid matrix object');
   }
 
-  this.brightness = 0x00; // Replacement for 'static' in C
+  this.brightness = 0x0F; // 16 уровней: 0..15
 
   // Привязываем методы к контексту 'this'
   this.boundHandleUserInput = this.HandleUserInput.bind(this);
@@ -70,6 +70,7 @@ function UserLogic(matrix) {
 
   this.separatorState = true;
   this.matrix.setup();
+  this.matrix.setBrightness(this.brightness);
 
   this.modes = {
     [AppMode.CLOCK]: new ClockMode(this),
@@ -158,7 +159,7 @@ UserLogic.prototype.HandleUserInput = function (btnIdx, pressType) {
   if (btnIdx === 2) {
     if (pressType === 'short') {
       this.brightness = (this.brightness + 1) & 0x0F; // Cycle 0-15
-      // this.set_brightness(this.brightness);
+      this.matrix.setBrightness(this.brightness);
       this.matrix.drawNumber(0, this.brightness, TimeSeparatorState.TIME_SEPARATOR_OFF, BlinkState.BLINK_NONE);
     } else { // LONG PRESS
       this.currentState = DeviceState.DEVICE_STATE_SET_HOURS;

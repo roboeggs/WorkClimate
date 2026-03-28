@@ -13,6 +13,7 @@ class Matrix {
     #NUM_DEV = 2;
 
     #colorLedOFF = 80;
+    #brightness = 15; // 0-15 режимов яркости (как в MAX7219)
 
     // framebuffer (НЕ зависит от orientation)
     #bitmap = Array(16).fill(0x0);
@@ -114,11 +115,25 @@ class Matrix {
     }
 
     /* =====================================================
+       BRIGHTNESS CONTROL
+    ===================================================== */
+
+    setBrightness(brightness) {
+        // brightness: 0-15 (16 режимов)
+        this.#brightness = constrain(brightness, 0, 15);
+        redraw();
+    }
+
+    getBrightness() {
+        return this.#brightness;
+    }
+
+    /* =====================================================
        ORIENTATION
     ===================================================== */
 
     changeOrientation() {
-        this.orientation = !this.orientation;
+        this.orientation = this.orientation === Orientation.HORIZONTAL ? Orientation.VERTICAL : Orientation.HORIZONTAL;
 
         this.#recalculateCanvasSize();
 
@@ -198,7 +213,18 @@ class Matrix {
                 const { x, y } =
                     this.#getPixelPosition(row, col);
 
-                fill(bit ? this.colorLedON : this.#colorLedOFF);
+                if (bit) {
+                    // Используем яркость для модификации цвета включённого LED
+                    // brightness: 0-15, но с минимальным порогом,
+                    // чтобы LED не уходили в полностью чёрный.
+                    const minAlpha = 150;
+                    const alpha = minAlpha + (this.#brightness / 15) * (255 - minAlpha);
+                    const onColor = color(this.colorLedON);
+                    onColor.setAlpha(alpha);
+                    fill(onColor);
+                } else {
+                    fill(this.#colorLedOFF);
+                }
                 noStroke();
                 circle(x, y, this.diameter);
             }

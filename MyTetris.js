@@ -41,7 +41,9 @@ class TetrisMode extends BaseMode {
 
 		this.pos = {};
 		this.offset = {}
-		this.currentTetro = this.createFig();
+		this.linesCleared = 0;
+		this.currentTetro = null;
+		this.gameInterval = null;
 
 
 	}
@@ -54,18 +56,28 @@ class TetrisMode extends BaseMode {
 	}
 
 	startGame() {
-		setInterval(() => {
+		this.linesCleared = 0;
+		this.#bitmask.fill(0x0);
+		this.#bitmap.fill(0x0);
+		this.currentTetro = this.createFig();
+
+		// Очищаем старый интервал если он есть
+		if (this.gameInterval) {
+			clearInterval(this.gameInterval);
+		}
+
+		// Создаем новый интервал и сохраняем ссылку
+		this.gameInterval = setInterval(() => {
 			this.moveTetromino(0, 1);
 		}, 500);
-
-		this.moveTetromino(0, 1);
-
-
 	}
 
 	exit(nextMode) {
 		// Остановить таймеры/игру
-		// if (this.game) this.game.stop();
+		if (this.gameInterval) {
+			clearInterval(this.gameInterval);
+			this.gameInterval = null;
+		}
 		console.log("Tetris exit");
 	}
 
@@ -141,6 +153,8 @@ class TetrisMode extends BaseMode {
 	}
 
 	removeFullLines() {
+		let removed = 0;
+
 		for (let row = this.#bitmask.length - 1; row >= 0; row--) {
 			if (this.#bitmask[row] === 0xFF) {
 				// сдвигаем все строки выше вниз на 1
@@ -149,11 +163,17 @@ class TetrisMode extends BaseMode {
 				}
 				// верхняя строка пустая
 				this.#bitmask[0] = 0x00;
+				removed++;
 
 				// важно: повторно проверяем этот же row,
 				// потому что сюда приехала новая строка сверху
 				row++;
 			}
+		}
+
+		if (removed > 0) {
+			this.linesCleared += removed;
+			console.log(`Tetris lines cleared: ${this.linesCleared}`);
 		}
 	}
 
