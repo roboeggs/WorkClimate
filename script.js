@@ -2,7 +2,7 @@
 let userInput;
 
 function setup() {
-  let matrix = new Matrix (undefined, 240, Orientation.VERTICAL);
+  let matrix = new Matrix (undefined, 240, Orientation.HORIZONTAL);
   userInput = new UserLogic(matrix);
 
   setInterval(() => {

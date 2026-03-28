@@ -77,7 +77,7 @@ function UserLogic(matrix) {
     [AppMode.TETRIS]: new TetrisMode(this)
   };
 
-  this.currentMode = this.modes[AppMode.TETRIS];
+  this.currentMode = this.modes[AppMode.CLOCK];
   this.currentMode.enter(null);
 
   // Передаем в MultiKeyHandler функцию-обертку
@@ -94,7 +94,6 @@ function UserLogic(matrix) {
       this.printCurrentTime();
     }
   }, 500);
-
 }
 
 
@@ -172,9 +171,13 @@ UserLogic.prototype.HandleUserInput = function (btnIdx, pressType) {
     switch(btnIdx){
       case 3: // LEFT + DOWN
         this.matrix.changeOrientation();
+        this.printCurrentTime();
+
         break;
       case 4: // LEFT + RIGHT
         this.switchMode(AppMode.TETRIS);
+        this.matrix.changeOrientation();
+
         break;  
     }
   }

@@ -44,6 +44,7 @@ class TetrisMode extends BaseMode {
 		this.linesCleared = 0;
 		this.currentTetro = null;
 		this.gameInterval = null;
+		this.isGameOver = false;
 
 
 	}
@@ -56,6 +57,7 @@ class TetrisMode extends BaseMode {
 	}
 
 	startGame() {
+		this.isGameOver = false;
 		this.linesCleared = 0;
 		this.#bitmask.fill(0x0);
 		this.#bitmap.fill(0x0);
@@ -70,6 +72,17 @@ class TetrisMode extends BaseMode {
 		this.gameInterval = setInterval(() => {
 			this.moveTetromino(0, 1);
 		}, 500);
+	}
+
+	setGameOver() {
+		this.isGameOver = true;
+
+		if (this.gameInterval) {
+			clearInterval(this.gameInterval);
+			this.gameInterval = null;
+		}
+
+		console.log("Tetris game over");
 	}
 
 	exit(nextMode) {
@@ -91,9 +104,15 @@ class TetrisMode extends BaseMode {
 
 
 	handleInput(btnIdx, pressType) {
+		if (this.isGameOver) {
+			this.startGame();
+			return;
+		}
+
 		// Выход в часы по комбинации LEFT+RIGHT (кнопка 4)
 		if (pressType === 'combo' && btnIdx === 4) {
 			this.ctx.switchMode(AppMode.CLOCK);
+			this.ctx.matrix.changeOrientation();
 			return;
 		}
 
@@ -178,6 +197,9 @@ class TetrisMode extends BaseMode {
 	}
 
 	moveTetromino(x, y) {
+		if (this.isGameOver || !this.currentTetro) {
+			return;
+		}
 
 		const move = {
 			x: this.pos.x + x,
@@ -208,6 +230,13 @@ class TetrisMode extends BaseMode {
 				this.mergeBitmapToMask();
 				this.removeFullLines();
 				this.currentTetro = this.createFig();
+
+				if (this.checkCollision(this.currentTetro, this.pos.x, this.pos.y) !== TetrisMode.COLLISION_OK) {
+					this.setGameOver();
+					this.currentTetro = null;
+					this.matrixDraw([[0]], 0, 0);
+					return;
+				}
 				break;
 		}
 
