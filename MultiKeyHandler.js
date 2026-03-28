@@ -2,6 +2,8 @@ class MultiKeyHandler {
   constructor(callback) {
     this.keys = {};
     this.LONG_PRESS_THRESHOLD = 1000;
+    this.HOLD_START_DELAY = 280;
+    this.HOLD_REPEAT_INTERVAL = 90;
     this.onButtonAction = callback;
 
     this.comboHandled = false; // <--- новое
@@ -15,7 +17,9 @@ class MultiKeyHandler {
         pressed: true,
         pressTime: millis(),
         handled: false,
-        inCombo: false
+        inCombo: false,
+        holdStarted: false,
+        lastHoldTick: 0
       };
     }
 
@@ -30,6 +34,11 @@ class MultiKeyHandler {
       delete this.keys[keyCode];
       return;
     }
+    if (keyData.holdStarted) {
+      delete this.keys[keyCode];
+      return;
+    }
+
     if (keyData) {
       const duration = millis() - keyData.pressTime;
 
@@ -69,6 +78,23 @@ class MultiKeyHandler {
         this.keys[k1].inCombo = true;
         this.keys[k2].inCombo = true;
         return;
+      }
+    }
+
+    const downData = this.keys[DOWN_ARROW];
+    if (downData && !downData.inCombo && !this.comboHandled) {
+      const heldMs = currentTime - downData.pressTime;
+
+      if (heldMs >= this.HOLD_START_DELAY) {
+        if (!downData.holdStarted) {
+          downData.holdStarted = true;
+          downData.lastHoldTick = currentTime;
+        }
+
+        if (currentTime - downData.lastHoldTick >= this.HOLD_REPEAT_INTERVAL) {
+          downData.lastHoldTick = currentTime;
+          this.onButtonAction(this.getPressedButton(DOWN_ARROW), 'hold');
+        }
       }
     }
 

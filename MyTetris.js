@@ -71,7 +71,7 @@ class TetrisMode extends BaseMode {
 
 	calculateInitialPosition(tetromino) {
 		return {
-			x: 3 - Math.floor(tetromino[0].length / 2),
+			x: Math.floor(tetromino[0].length / 2) * -1 + 4, // Центрируем по X относительно ширины матрицы (8)
 			y: 0
 		};
 	}
@@ -104,6 +104,8 @@ class TetrisMode extends BaseMode {
 					this.rotateTetromino();
 				} else if (pressType === 'long') {
 					this.moveTetromino(0, 1);
+				} else if (pressType === 'hold') {
+					this.moveTetromino(0, 1);
 				}
 				break;
 
@@ -129,10 +131,13 @@ class TetrisMode extends BaseMode {
 			}
 		}
 
-		this.currentTetro = rotated; // обновляем текущее состояние
-		this.offset = this.setOffset(rotated);
+		if(this.checkCollision(rotated, this.pos.x, this.pos.y) === TetrisMode.COLLISION_OK){
 
-		this.matrixDraw(this.currentTetro, this.pos.x, this.pos.y)
+			this.currentTetro = rotated; // обновляем текущее состояние
+			this.offset = this.setOffset(rotated);
+			this.matrixDraw(this.currentTetro, this.pos.x, this.pos.y)
+		}
+
 	}
 
 	removeFullLines() {
