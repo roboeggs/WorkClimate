@@ -1,12 +1,18 @@
 class MultiKeyHandler {
-  constructor(callback) {
+  constructor(callback, shouldEmitHold = () => true) {
     this.keys = {};
     this.LONG_PRESS_THRESHOLD = 1000;
     this.HOLD_START_DELAY = 280;
     this.HOLD_REPEAT_INTERVAL = 90;
     this.onButtonAction = callback;
+    this.shouldEmitHold = shouldEmitHold;
 
     this.comboHandled = false; // <--- новое
+  }
+
+  reset() {
+    this.keys = {};
+    this.comboHandled = false;
   }
 
   keyPressed(keyCode) {
@@ -72,17 +78,14 @@ class MultiKeyHandler {
 
         this.onButtonAction(this.getPressedButton(k1) + this.getPressedButton(k2) + 2, 'combo');
 
-        // помечаем обе клавиши как обработанные
-        this.keys[k1].handled = true;
-        this.keys[k2].handled = true;
-        this.keys[k1].inCombo = true;
-        this.keys[k2].inCombo = true;
+        // После combo сразу очищаем состояние клавиш, чтобы не было "залипших" нажатий.
+        this.reset();
         return;
       }
     }
 
     const downData = this.keys[DOWN_ARROW];
-    if (downData && !downData.inCombo && !this.comboHandled) {
+    if (downData && !downData.inCombo && !this.comboHandled && this.shouldEmitHold()) {
       const heldMs = currentTime - downData.pressTime;
 
       if (heldMs >= this.HOLD_START_DELAY) {
