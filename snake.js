@@ -33,6 +33,11 @@ class SnakeMode extends BaseMode {
   }
 
   handleInput(btnIdx, pressType) {
+    if (pressType === 'combo' && btnIdx === 3) {
+      this.ctx.switchMode(AppMode.CLOCK);
+      return;
+    }
+
     if (pressType === 'combo' && btnIdx === 4) {
       this.ctx.switchMode(AppMode.CLOCK);
       return;

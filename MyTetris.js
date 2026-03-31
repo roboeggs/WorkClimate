@@ -109,6 +109,11 @@ class TetrisMode extends BaseMode {
 			return;
 		}
 
+		if (pressType === 'combo' && btnIdx === 3) {
+			this.ctx.switchMode(AppMode.CLOCK);
+			return;
+		}
+
 		// Выход в часы по комбинации LEFT+RIGHT (кнопка 4)
 		if (pressType === 'combo' && btnIdx === 4) {
 			this.ctx.matrix.changeOrientation();
