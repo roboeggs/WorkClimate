@@ -198,6 +198,7 @@ button:active {
 }
 
 .orbit-dot {
+  --orbit-duration: 270s;
   --orbit-radius: min(52vw, 420px);
   position: absolute;
   left: 50%;
@@ -219,11 +220,21 @@ button:active {
     0 12px 24px rgba(57, 109, 176, 0.2);
   backdrop-filter: blur(3px);
   transform: rotate(var(--start)) translateX(var(--orbit-radius));
-  animation: orbit 90s linear infinite;
+  animation: orbit var(--orbit-duration) linear infinite;
   animation-delay: var(--delay);
   cursor: pointer;
   pointer-events: auto;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.orbit-dot-label {
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: rotate(calc(-1 * var(--start)));
+  animation: orbit-counter var(--orbit-duration) linear infinite;
+  animation-delay: var(--delay);
 }
 
 .orbit-dot:hover {
@@ -239,6 +250,85 @@ button:active {
   box-shadow:
     0 0 44px rgba(212, 233, 255, 0.6),
     0 16px 26px rgba(65, 124, 205, 0.36);
+}
+
+.orbit-dot.is-selected {
+  color: rgba(18, 36, 69, 0.95);
+  background: linear-gradient(180deg, rgba(255, 244, 199, 0.95), rgba(255, 220, 146, 0.9));
+  border-color: rgba(255, 237, 184, 0.95);
+  box-shadow:
+    0 0 54px rgba(255, 214, 126, 0.62),
+    0 16px 28px rgba(166, 115, 45, 0.34);
+}
+
+.orbit-editor {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  min-width: 270px;
+  max-height: min(82vh, 560px);
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(231, 242, 255, 0.45);
+  background: linear-gradient(180deg, rgba(239, 247, 255, 0.96), rgba(218, 232, 249, 0.94));
+  box-shadow: 0 18px 34px rgba(23, 56, 102, 0.25);
+}
+
+.orbit-editor[hidden] {
+  display: none;
+}
+
+.orbit-editor label {
+  margin: 0;
+  color: #19355d;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.orbit-editor input {
+  min-height: 40px;
+  border: 1px solid rgba(120, 151, 194, 0.6);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #0d2548;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.orbit-editor select {
+  min-height: 40px;
+  border: 1px solid rgba(120, 151, 194, 0.6);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #0d2548;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+#orbit-humidity-wrap[hidden] {
+  display: none;
+}
+
+.orbit-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.orbit-editor-actions button {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+#orbit-delete {
+  background: linear-gradient(180deg, #ea6d6d, #c44343);
+}
+
+#orbit-cancel {
+  background: linear-gradient(180deg, #8ca4bf, #607a98);
 }
 
 .device-with-buttons {
@@ -351,6 +441,15 @@ button:active {
   }
 }
 
+@keyframes orbit-counter {
+  from {
+    transform: rotate(calc(-1 * var(--start)));
+  }
+  to {
+    transform: rotate(calc(-1 * var(--start) - 360deg));
+  }
+}
+
 @media (max-width: 640px) {
   body {
     padding: 14px;
@@ -383,6 +482,11 @@ button:active {
     margin-left: -22px;
     margin-top: -22px;
     font-size: 1.1rem;
+  }
+
+  .orbit-editor {
+    top: 50%;
+    min-width: min(92vw, 320px);
   }
 
   button {
