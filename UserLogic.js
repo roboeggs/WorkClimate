@@ -55,7 +55,8 @@ class UserLogic {
 
     this.modes = {
       [AppMode.CLOCK]: new ClockMode(this),
-      [AppMode.TETRIS]: new TetrisMode(this)
+      [AppMode.TETRIS]: new TetrisMode(this),
+      [AppMode.SNAKE]: new SnakeMode(this)
     };
 
     this.currentMode = this.modes[AppMode.CLOCK];
@@ -66,7 +67,7 @@ class UserLogic {
       (btn, type) => {
         this.currentMode.handleInput(btn, type);
       },
-      () => this.currentMode === this.modes[AppMode.TETRIS]
+      () => this.currentMode === this.modes[AppMode.TETRIS] || this.currentMode === this.modes[AppMode.SNAKE]
     );
 
     // Запускаем мигание раз в 500мс (полный цикл 1 сек)
@@ -189,8 +190,11 @@ class UserLogic {
     if (pressType === 'combo') {
       switch (btnIdx) {
         case 3: // LEFT + DOWN
-          // this.matrix.changeOrientation();
-          // this.printCurrentTime();
+          if (this.matrix.orientation === Orientation.HORIZONTAL) {
+            this.switchMode(AppMode.SNAKE);
+          } else {
+            this.switchMode(AppMode.TETRIS);
+          }
           break;
         case 4: // LEFT + RIGHT
           // this.switchMode(AppMode.TETRIS);

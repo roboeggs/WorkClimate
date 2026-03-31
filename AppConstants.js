@@ -11,5 +11,6 @@ const BlinkState = Object.freeze({
 
 const AppMode = Object.freeze({
   CLOCK: 'clock',
-  TETRIS: 'tetris'
+  TETRIS: 'tetris',
+  SNAKE: 'snake'
 });
