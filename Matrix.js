@@ -12,11 +12,13 @@ class Matrix {
     #LEDS_PER_MODULE = 8;
     #NUM_DEV = 2;
 
-    #colorLedOFF = 80;
+    #colorLedOFF = 100;
     #brightness = 15; // 0-15 режимов яркости (как в MAX7219)
 
     // framebuffer (НЕ зависит от orientation)
     #bitmap = Array(16).fill(0x0);
+	#bitmask = Array(16).fill(0x0);
+
 
     #digitPatterns = [
         [0xe0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xe0],
@@ -29,6 +31,20 @@ class Matrix {
         [0x20, 0x20, 0x20, 0x40, 0x80, 0x80, 0xe0],
         [0xe0, 0xa0, 0xa0, 0xe0, 0xa0, 0xa0, 0xe0],
         [0xe0, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xe0]
+    ];
+
+    #digits = [
+        [0b111, 0b101, 0b101, 0b101, 0b101, 0b101, 0b111], //0
+        [0b010, 0b110, 0b010, 0b010, 0b010, 0b010, 0b111], //1
+        [0b111, 0b001, 0b001, 0b111, 0b100, 0b100, 0b111], //2
+        [0b111, 0b001, 0b001, 0b111, 0b001, 0b001, 0b111], //3
+        [0b101, 0b101, 0b101, 0b111, 0b001, 0b001, 0b001], //4
+        [0b111, 0b100, 0b100, 0b111, 0b001, 0b001, 0b111], //5
+        [0b111, 0b100, 0b100, 0b111, 0b101, 0b101, 0b111], //6
+        [0b111, 0b001, 0b001, 0b010, 0b100, 0b100, 0b100], //7
+        [0b111, 0b101, 0b101, 0b111, 0b101, 0b101, 0b111], //8
+        [0b111, 0b101, 0b101, 0b111, 0b001, 0b001, 0b111]  //9
+
     ];
 
     #normalizeOrientation(orientation) {
@@ -105,13 +121,31 @@ class Matrix {
         }
     }
 
+    #emitLayoutChange() {
+        window.dispatchEvent(
+            new CustomEvent('matrix-layout-change', {
+                detail: {
+                    orientation: this.orientation,
+                    moduleSize: this.moduleSize,
+                    canvasWidth: this.canvasWidth,
+                    canvasHeight: this.canvasHeight
+                }
+            })
+        );
+    }
+
     /* =====================================================
        P5 SETUP
     ===================================================== */
 
     setup() {
-        createCanvas(this.canvasWidth, this.canvasHeight);
+        const renderer = createCanvas(this.canvasWidth, this.canvasHeight);
+        const matrixHost = document.getElementById('matrix-host');
+        if (matrixHost) {
+            renderer.parent(matrixHost);
+        }
         noLoop();
+        this.#emitLayoutChange();
     }
 
     /* =====================================================
@@ -140,6 +174,7 @@ class Matrix {
         resizeCanvas(this.canvasWidth, this.canvasHeight);
 
         redraw();
+        this.#emitLayoutChange();
     }
 
     /* =====================================================
@@ -160,6 +195,7 @@ class Matrix {
         resizeCanvas(this.canvasWidth, this.canvasHeight);
 
         redraw();
+        this.#emitLayoutChange();
     }
 
     /* =====================================================
@@ -266,6 +302,9 @@ class Matrix {
             return;
         }
 
+        this.drawNumberBitmask(hours, minutes, separatorState, blinkDigitsState);
+        return;
+
         // Извлекаем цифры: единицы, десятки, сотни, тысячи
         const units = [
             number % 10,           // единицы (младшая цифра)
@@ -302,5 +341,160 @@ class Matrix {
         }
         this.draw();
 
+    }
+
+    #setBitmaskPixelByMatrixView(x, y) {
+        if (x < 0 || x >= 16 || y < 0 || y >= 8) {
+            return;
+        }
+
+        // Преобразуем координаты отображения 16x8 в буфер 8x16 (как в TetrisMode)
+        const matrixRow = (x >= 8 ? 0 : 8) + (7 - y);
+        const matrixBit = x >= 8 ? x - 8 : x;
+
+        const sourceBase = matrixRow < 8 ? 8 : 0;
+        const sourceRow = sourceBase + matrixBit;
+        const sourceBit = 7 - (matrixRow % 8);
+
+        this.#bitmask[sourceRow] |= (1 << sourceBit);
+    }
+
+    #setBitmaskPixelByVerticalView(x, y) {
+        if (x < 0 || x >= 8 || y < 0 || y >= 16) {
+            return;
+        }
+
+        const logicalRow = 7 - x;
+        const logicalCol = y;
+
+        this.#setBitmaskPixelByMatrixView(logicalCol, logicalRow);
+    }
+
+    #flushBitmaskToMatrix() {
+        const transformArr = Array(16).fill(0x0);
+
+        for (let i = 0; i < transformArr.length; i++) {
+            let transMask = 0x00;
+            const n = i < 8 ? 8 : 0;
+
+            for (let j = 0; j < 8; j++) {
+                const m = n + j;
+                const col = this.#bitmask[m];
+                const bit = (col >> (7 - (i % 8))) & 1;
+
+                if (bit === 1) {
+                    transMask |= (1 << j);
+                }
+            }
+
+            transformArr[i] = transMask;
+        }
+
+        for (let matrixNum = 0; matrixNum < this.#NUM_DEV; matrixNum++) {
+            for (let i = 1; i < 9; i++) {
+                const bitmapIndex = matrixNum * 8 + i - 1;
+                this.maxWrite(i + matrixNum * 8, transformArr[bitmapIndex]);
+            }
+        }
+    }
+
+    drawNumberBitmask(hours, minutes, separatorState, blinkDigitsState) {
+        if (hours > 23 || minutes > 59 || hours < 0 || minutes < 0) {
+            return;
+        }
+
+        this.#bitmask.fill(0x0);
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+            const digits = [
+                Math.floor(hours / 10),
+                hours % 10,
+                Math.floor(minutes / 10),
+                minutes % 10
+            ];
+
+            const digitStartX = [0, 4, 9, 13];
+            const digitBaseY = 1;
+
+            for (let d = 0; d < digits.length; d++) {
+                const pattern = this.#digits[digits[d]];
+                const startX = digitStartX[d];
+
+                for (let row = 0; row < pattern.length; row++) {
+                    const rowMask = pattern[row];
+
+                    for (let col = 0; col < 3; col++) {
+                        if (((rowMask >> (2 - col)) & 1) === 1) {
+                            this.#setBitmaskPixelByMatrixView(startX + col, row + digitBaseY);
+                        }
+                    }
+                }
+            }
+
+            if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON) {
+                // Верхняя симметричная точка 2x2
+                this.#setBitmaskPixelByMatrixView(7, 2);
+                this.#setBitmaskPixelByMatrixView(8, 2);
+                this.#setBitmaskPixelByMatrixView(7, 3);
+                this.#setBitmaskPixelByMatrixView(8, 3);
+
+                // Нижняя симметричная точка 2x2
+                this.#setBitmaskPixelByMatrixView(7, 5);
+                this.#setBitmaskPixelByMatrixView(8, 5);
+                this.#setBitmaskPixelByMatrixView(7, 6);
+                this.#setBitmaskPixelByMatrixView(8, 6);
+            }
+
+            if (blinkDigitsState === BlinkState.BLINK_HOURS) {
+                for (let x = 0; x < 8; x++) {
+                    this.#setBitmaskPixelByMatrixView(x, 0);
+                }
+            } else if (blinkDigitsState === BlinkState.BLINK_MINUTES) {
+                for (let x = 8; x < 16; x++) {
+                    this.#setBitmaskPixelByMatrixView(x, 0);
+                }
+            }
+        } else {
+            const digitsPerModule = [
+                [Math.floor(hours / 10), hours % 10],
+                [Math.floor(minutes / 10), minutes % 10]
+            ];
+
+            const moduleBaseY = [0, 9];
+            const digitStartXInModule = [1, 5]; // 2 цифры 3x7, прижаты к правому краю 8x8
+
+            for (let moduleIndex = 0; moduleIndex < this.#NUM_DEV; moduleIndex++) {
+                const baseY = moduleBaseY[moduleIndex];
+
+                for (let d = 0; d < 2; d++) {
+                    const pattern = this.#digits[digitsPerModule[moduleIndex][d]];
+                    const startX = digitStartXInModule[d];
+
+                    for (let row = 0; row < pattern.length; row++) {
+                        const rowMask = pattern[row];
+
+                        for (let col = 0; col < 3; col++) {
+                            if (((rowMask >> (2 - col)) & 1) === 1) {
+                                this.#setBitmaskPixelByVerticalView(startX + col, baseY + row);
+                            }
+                        }
+                    }
+                }
+            }
+            // В вертикальной ориентации разделитель не рисуем.
+
+            if (blinkDigitsState === BlinkState.BLINK_HOURS) {
+                for (let x = 0; x < 8; x++) {
+                    this.#setBitmaskPixelByVerticalView(x, 7);
+                }
+            } else if (blinkDigitsState === BlinkState.BLINK_MINUTES) {
+                for (let x = 0; x < 8; x++) {
+                    this.#setBitmaskPixelByVerticalView(x, 8);
+                }
+            }
+        }
+
+        this.#flushBitmaskToMatrix();
+        this.draw();
     }
 }

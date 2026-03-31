@@ -1,9 +1,36 @@
 
+const DEFAULT_MATRIX_MODULE_HEIGHT = 220;
+const MATRIX_FRAME_PADDING_PX = 26;
+
 let userInput;
+let matrix;
+
+function updateDeviceFrameSize(moduleSizePx, orientation) {
+  const device = document.getElementById('device');
+  if (!device) {
+    return;
+  }
+
+  const isVertical = orientation === Orientation.VERTICAL;
+  const matrixWidthPx = isVertical ? moduleSizePx : moduleSizePx * 2;
+  const matrixHeightPx = isVertical ? moduleSizePx * 2 : moduleSizePx;
+
+  const deviceWidthPx = matrixWidthPx + MATRIX_FRAME_PADDING_PX * 2;
+  const deviceHeightPx = matrixHeightPx + MATRIX_FRAME_PADDING_PX * 2;
+
+  device.style.width = `${deviceWidthPx.toFixed(2)}px`;
+  device.style.height = `${deviceHeightPx.toFixed(2)}px`;
+}
+
+function getMatrixModuleHeight() {
+  return DEFAULT_MATRIX_MODULE_HEIGHT;
+}
 
 function setup() {
-  let matrix = new Matrix (undefined, 240, Orientation.HORIZONTAL);
+  matrix = new Matrix(undefined, getMatrixModuleHeight(), Orientation.HORIZONTAL);
   userInput = new UserLogic(matrix);
+
+  updateDeviceFrameSize(matrix.moduleSize, matrix.orientation);
 
   setInterval(() => {
     userInput.keyHandler.update();
@@ -44,3 +71,43 @@ function keyPressed() {
 function keyReleased() {
   userInput.keyHandler.keyReleased(keyCode);
 }
+
+window.addEventListener('matrix-layout-change', (event) => {
+  const nextOrientation = event.detail?.orientation;
+  const nextModuleSize = Number(event.detail?.moduleSize);
+
+  if (!Number.isFinite(nextModuleSize) || nextModuleSize <= 0) {
+    return;
+  }
+
+  if (nextOrientation !== Orientation.HORIZONTAL && nextOrientation !== Orientation.VERTICAL) {
+    return;
+  }
+
+  updateDeviceFrameSize(nextModuleSize, nextOrientation);
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const orbitDots = document.querySelectorAll('.orbit-dot');
+
+  orbitDots.forEach((dot) => {
+    dot.setAttribute('role', 'button');
+    dot.setAttribute('tabindex', '0');
+
+    const activate = () => {
+      dot.classList.add('is-active');
+      setTimeout(() => {
+        dot.classList.remove('is-active');
+      }, 180);
+    };
+
+    dot.addEventListener('click', activate);
+
+    dot.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate();
+      }
+    });
+  });
+});

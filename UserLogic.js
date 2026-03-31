@@ -193,8 +193,9 @@ class UserLogic {
           // this.printCurrentTime();
           break;
         case 4: // LEFT + RIGHT
-          this.switchMode(AppMode.TETRIS);
+          // this.switchMode(AppMode.TETRIS);
           this.matrix.changeOrientation();
+          this.printCurrentTime();
           break;
       }
     }
