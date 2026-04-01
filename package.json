@@ -1,5 +1,5 @@
 {
-  "name": "snake",
+  "name": "LED-Clock",
   "version": "1.0.0",
   "description": "Это эмуляция устройства на LED-матрице с двумя режимами:\r 1. Часы\r 2. Тетрис",
   "main": "Player.js",
@@ -15,7 +15,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/roboeggs/snake/issues"
   },

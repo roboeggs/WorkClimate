@@ -1,3 +1,5 @@
+import { deviceNrf } from './../core/nrf24l01.js';
+
 const TEMP_MIN_C = -55;
 const TEMP_MAX_C = 125;
 const DEFAULT_HUMIDITY = 50;
@@ -181,8 +183,8 @@ window.addEventListener('DOMContentLoaded', () => {
       humidity
     };
 
-    if (window.deviceNrf && typeof window.deviceNrf.announceSensor === 'function') {
-      window.deviceNrf.announceSensor(announcePayload);
+    if (deviceNrf && typeof deviceNrf.announceSensor === 'function') {
+      deviceNrf.announceSensor(announcePayload);
     }
 
     closeEditor();
@@ -200,8 +202,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     applyDotLabel(selectedDot, NaN);
-    if (selectedDot.dataset.sensorId && window.deviceNrf && typeof window.deviceNrf.removeSensor === 'function') {
-      window.deviceNrf.removeSensor(selectedDot.dataset.sensorId);
+    if (selectedDot.dataset.sensorId && deviceNrf && typeof deviceNrf.removeSensor === 'function') {
+      deviceNrf.removeSensor(selectedDot.dataset.sensorId);
     }
     delete selectedDot.dataset.sensorId;
     delete selectedDot.dataset.sensorType;

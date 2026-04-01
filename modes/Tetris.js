@@ -1,4 +1,8 @@
-class TetrisMode extends BaseMode {
+import BaseMode from './BaseMode.js';
+import { AppMode } from './../core/AppConstants.js';
+import { debugLog } from './../core/debug.js';
+
+export default class TetrisMode extends BaseMode {
 	static COLLISION_OK = 0;
 	static COLLISION_BLOCKED = 1;
 	static COLLISION_X = 2;
@@ -52,7 +56,7 @@ class TetrisMode extends BaseMode {
 		// Инициализация тетриса
 		// this.game = new Tetris(this.ctx.matrix);
 		// this.game.start();
-		console.log("Tetris enter");
+		debugLog('Tetris enter');
 		this.startGame();
 	}
 
@@ -82,7 +86,7 @@ class TetrisMode extends BaseMode {
 			this.gameInterval = null;
 		}
 
-		console.log("Tetris game over");
+		debugLog('Tetris game over');
 	}
 
 	exit(nextMode) {
@@ -91,7 +95,7 @@ class TetrisMode extends BaseMode {
 			clearInterval(this.gameInterval);
 			this.gameInterval = null;
 		}
-		console.log("Tetris exit");
+		debugLog('Tetris exit');
 	}
 
 	calculateInitialPosition(tetromino) {
@@ -197,7 +201,7 @@ class TetrisMode extends BaseMode {
 
 		if (removed > 0) {
 			this.linesCleared += removed;
-			console.log(`Tetris lines cleared: ${this.linesCleared}`);
+			debugLog(`Tetris lines cleared: ${this.linesCleared}`);
 		}
 	}
 

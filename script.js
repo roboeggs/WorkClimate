@@ -1,3 +1,5 @@
+import { Matrix, Orientation } from './modes/Matrix.js';
+import UserLogic from './core/UserLogic.js';
 
 const DEFAULT_MATRIX_MODULE_HEIGHT = 220;
 const MATRIX_FRAME_PADDING_PX = 26;
@@ -64,10 +66,12 @@ function setup() {
   scheduleNextMinuteUpdate();
   
   // Демонстрируем все символы при запуске
-  setTimeout(() => {
-    demonstrateAllSymbols();
-  }, 500);
+  // setTimeout(() => {
+  //   demonstrateAllSymbols();
+  // }, 500);
 }
+
+window.setup = setup;
 
 function scheduleNextMinuteUpdate() {
   const now = new Date();
@@ -89,13 +93,25 @@ function draw() {
   // userInput.UpdateTime();
 }
 
+window.draw = draw;
+
 function keyPressed() {
+  if (!userInput || !userInput.keyHandler) {
+    return;
+  }
   userInput.keyHandler.keyPressed(keyCode);
 }
 
+window.keyPressed = keyPressed;
+
 function keyReleased() {
+  if (!userInput || !userInput.keyHandler) {
+    return;
+  }
   userInput.keyHandler.keyReleased(keyCode);
 }
+
+window.keyReleased = keyReleased;
 
 window.addEventListener('matrix-layout-change', (event) => {
   const nextOrientation = event.detail?.orientation;
@@ -111,15 +127,3 @@ window.addEventListener('matrix-layout-change', (event) => {
 
   updateDeviceFrameSize(nextModuleSize, nextOrientation);
 });
-
-function initP5IfReady() {
-  if (window.__p5AppInstance || !window.p5) {
-    return;
-  }
-
-  // Global mode keeps compatibility with existing setup/draw functions.
-  window.__p5AppInstance = new window.p5();
-}
-
-window.addEventListener('p5-ready', initP5IfReady);
-initP5IfReady();

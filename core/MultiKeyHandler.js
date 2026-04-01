@@ -1,4 +1,6 @@
-class MultiKeyHandler {
+import { debugLog } from './debug.js';
+
+export default class MultiKeyHandler {
   constructor(callback, shouldEmitHold = () => true) {
     this.keys = {};
     this.LONG_PRESS_THRESHOLD = 1000;
@@ -6,8 +8,12 @@ class MultiKeyHandler {
     this.HOLD_REPEAT_INTERVAL = 90;
     this.onButtonAction = callback;
     this.shouldEmitHold = shouldEmitHold;
-
-    this.comboHandled = false; // <--- новое
+    this.comboHandled = false;
+    
+    // p5.js arrow key constants, defined when p5 loads
+    this.LEFT_ARROW = 37;
+    this.RIGHT_ARROW = 39;
+    this.DOWN_ARROW = 40;
   }
 
   reset() {
@@ -16,7 +22,7 @@ class MultiKeyHandler {
   }
 
   keyPressed(keyCode) {
-    if (![LEFT_ARROW, RIGHT_ARROW, DOWN_ARROW].includes(keyCode)) return;
+    if (![this.LEFT_ARROW, this.RIGHT_ARROW, this.DOWN_ARROW].includes(keyCode)) return;
 
     if (!this.keys[keyCode]) {
       this.keys[keyCode] = {
@@ -74,7 +80,7 @@ class MultiKeyHandler {
       if (d1 >= this.LONG_PRESS_THRESHOLD && d2 >= this.LONG_PRESS_THRESHOLD) {
         this.comboHandled = true;
 
-        console.log(`LONG COMBO: ${this.getPressedButton(k1)} + ${this.getPressedButton(k2)}`);
+        debugLog(`LONG COMBO: ${this.getPressedButton(k1)} + ${this.getPressedButton(k2)}`);
 
         this.onButtonAction(this.getPressedButton(k1) + this.getPressedButton(k2) + 2, 'combo');
 
@@ -84,7 +90,7 @@ class MultiKeyHandler {
       }
     }
 
-    const downData = this.keys[DOWN_ARROW];
+    const downData = this.keys[this.DOWN_ARROW];
     if (downData && !downData.inCombo && !this.comboHandled && this.shouldEmitHold()) {
       const heldMs = currentTime - downData.pressTime;
 
@@ -96,7 +102,7 @@ class MultiKeyHandler {
 
         if (currentTime - downData.lastHoldTick >= this.HOLD_REPEAT_INTERVAL) {
           downData.lastHoldTick = currentTime;
-          this.onButtonAction(this.getPressedButton(DOWN_ARROW), 'hold');
+          this.onButtonAction(this.getPressedButton(this.DOWN_ARROW), 'hold');
         }
       }
     }
@@ -105,29 +111,29 @@ class MultiKeyHandler {
   }
 
   onShortPress(keyCode, duration) {
-    console.log(`SHORT PRESS: ${this.getDirection(keyCode)} (${duration}ms)`);
+    debugLog(`SHORT PRESS: ${this.getDirection(keyCode)} (${duration}ms)`);
     this.handleSpecificButton(keyCode, 'short');
   }
 
   onLongPress(keyCode, duration) {
-    console.log(`LONG PRESS: ${this.getDirection(keyCode)} (${duration}ms)`);
+    debugLog(`LONG PRESS: ${this.getDirection(keyCode)} (${duration}ms)`);
     this.handleSpecificButton(keyCode, 'long');
   }
 
   getDirection(keyCode) {
     switch (keyCode) {
-      case LEFT_ARROW: return "LEFT";
-      case RIGHT_ARROW: return "RIGHT";
-      case DOWN_ARROW: return "DOWN";
+      case this.LEFT_ARROW: return "LEFT";
+      case this.RIGHT_ARROW: return "RIGHT";
+      case this.DOWN_ARROW: return "DOWN";
       default: return `KEY_${keyCode}`;
     }
   }
 
   getPressedButton(keyCode) {
     let buttonIndex = -1;
-    if (keyCode === LEFT_ARROW) buttonIndex = 0;
-    if (keyCode === DOWN_ARROW) buttonIndex = 1;
-    if (keyCode === RIGHT_ARROW) buttonIndex = 2;
+    if (keyCode === this.LEFT_ARROW) buttonIndex = 0;
+    if (keyCode === this.DOWN_ARROW) buttonIndex = 1;
+    if (keyCode === this.RIGHT_ARROW) buttonIndex = 2;
     return buttonIndex;
   }
 

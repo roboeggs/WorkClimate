@@ -3,14 +3,16 @@ import p5 from 'p5';
 window.p5 = p5;
 globalThis.p5 = p5;
 
-async function bootstrapP5() {
-	try {
-		await import('p5.sound');
-	} catch (err) {
-		console.warn('p5.sound failed to load:', err);
-	}
+import './core/AppConstants.js';
+import './core/nrf24l01.js';
+import './script.js';
+import './modes/orbitEditor.js';
+import { debugLog, initDebugFromUrl } from './core/debug.js';
 
-	window.dispatchEvent(new Event('p5-ready'));
-}
+initDebugFromUrl();
+debugLog('[debug] startup complete');
 
-bootstrapP5();
+// Optional audio addon for p5.
+import('p5.sound').catch((err) => {
+	console.warn('p5.sound failed to load:', err);
+});

@@ -1,9 +1,12 @@
-const Orientation = {
+import { createMapperForOrientation } from './../mappers/mapper-adapter.js';
+import { BlinkState, TimeSeparatorState } from './../core/AppConstants.js';
+
+export const Orientation = {
     HORIZONTAL: 0, // 2 модуля в ряд
     VERTICAL: 1    // 2 модуля колонкой
 };
 
-class Matrix {
+export class Matrix {
 
     /* =====================================================
        HARDWARE CONFIG
@@ -17,7 +20,7 @@ class Matrix {
 
     // framebuffer (НЕ зависит от orientation)
     #bitmap = Array(16).fill(0x0);
-	#bitmask = Array(16).fill(0x0);
+    #bitmask = Array(16).fill(0x0);
 
 
     #digits = [
@@ -35,15 +38,15 @@ class Matrix {
     ];
 
     #alphabet = {
-        'a': [0b0110, 0b1001, 0b1001, 0b1001, 0b1111, 0b1001, 0b1001], 
-        'b': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1110], 
+        'a': [0b0110, 0b1001, 0b1001, 0b1001, 0b1111, 0b1001, 0b1001],
+        'b': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1110],
         'c': [0b0111, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b0111],
         'd': [0b0001, 0b0001, 0b0111, 0b1001, 0b1001, 0b1001, 0b0111],
         'e': [0b1111, 0b1000, 0b1000, 0b1110, 0b1000, 0b1000, 0b1111],
         'f': [0b1111, 0b1000, 0b1000, 0b1111, 0b1000, 0b1000, 0b1000],
         'g': [0b0110, 0b1001, 0b1000, 0b1011, 0b1001, 0b1001, 0b0110],
-        'h': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1001], 
-        'i': [0b1000, 0b0000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000], 
+        'h': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1001],
+        'i': [0b1000, 0b0000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000],
         'j': [0b001, 0b0000, 0b001, 0b001, 0b101, 0b101, 0b0010],
         'k': [0b1001, 0b1010, 0b1100, 0b1110, 0b0001, 0b1001, 0b0001],
         'l': [0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1111],
@@ -57,7 +60,7 @@ class Matrix {
         't': [0b1110, 0b0100, 0b0100, 0b0100, 0b0100, 0b0101, 0b0010],
         'u': [0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0111],
         'v': [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
-        'w': [0b10001,0b10001,0b10001,0b10101,0b10101,0b01110,0b01010],
+        'w': [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b01110, 0b01010],
         'x': [0b1001, 0b1001, 0b1001, 0b0110, 0b1001, 0b1001, 0b1001],
         'y': [0b1001, 0b1001, 0b1001, 0b0111, 0b0001, 0b1001, 0b0110],
         'z': [0b1111, 0b0001, 0b0001, 0b0110, 0b1000, 0b1000, 0b1111]
@@ -98,8 +101,10 @@ class Matrix {
 
         this.colorLedON = colorLed;
         this.moduleSize = moduleSize;
-        this.orientation =
-            this.#normalizeOrientation(orientation);
+        this.orientation = this.#normalizeOrientation(orientation);
+
+
+        this.mapper = createMapperForOrientation(this.orientation);
 
         // расстояние между LED
         this.step = this.moduleSize / this.#LEDS_PER_MODULE;
@@ -192,6 +197,9 @@ class Matrix {
 
         redraw();
         this.#emitLayoutChange();
+
+        this.mapper = createMapperForOrientation(this.orientation);
+
     }
 
     /* =====================================================
@@ -307,33 +315,12 @@ class Matrix {
         }
     }
 
-
-    #setBitmaskPixelByMatrixView(x, y) {
-        if (x < 0 || x >= 16 || y < 0 || y >= 8) {
-            return;
-        }
-
-        // Преобразуем координаты отображения 16x8 в буфер 8x16 (как в TetrisMode)
-        const matrixRow = (x >= 8 ? 0 : 8) + (7 - y);
-        const matrixBit = x >= 8 ? x - 8 : x;
-
-        const sourceBase = matrixRow < 8 ? 8 : 0;
-        const sourceRow = sourceBase + matrixBit;
-        const sourceBit = 7 - (matrixRow % 8);
-
-        this.#bitmask[sourceRow] |= (1 << sourceBit);
+    #setBitmaskPixel(x, y) {
+        const mapped = this.mapper.map(x, y);
+        if (!mapped) return;
+        this.#bitmask[mapped.row] |= (1 << mapped.bitIndex);
     }
 
-    #setBitmaskPixelByVerticalView(x, y) {
-        if (x < 0 || x >= 8 || y < 0 || y >= 16) {
-            return;
-        }
-
-        const logicalRow = 7 - x;
-        const logicalCol = y;
-
-        this.#setBitmaskPixelByMatrixView(logicalCol, logicalRow);
-    }
 
     #flushBitmaskToMatrix() {
         const transformArr = Array(16).fill(0x0);
@@ -390,7 +377,7 @@ class Matrix {
 
                     for (let col = 0; col < 3; col++) {
                         if (((rowMask >> (2 - col)) & 1) === 1) {
-                            this.#setBitmaskPixelByMatrixView(startX + col, row + digitBaseY);
+                            this.#setBitmaskPixel(startX + col, row + digitBaseY);
                         }
                     }
                 }
@@ -398,25 +385,25 @@ class Matrix {
 
             if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON) {
                 // Верхняя симметричная точка 2x2
-                this.#setBitmaskPixelByMatrixView(7, 2);
-                this.#setBitmaskPixelByMatrixView(8, 2);
-                this.#setBitmaskPixelByMatrixView(7, 3);
-                this.#setBitmaskPixelByMatrixView(8, 3);
+                this.#setBitmaskPixel(7, 2);
+                this.#setBitmaskPixel(8, 2);
+                this.#setBitmaskPixel(7, 3);
+                this.#setBitmaskPixel(8, 3);
 
                 // Нижняя симметричная точка 2x2
-                this.#setBitmaskPixelByMatrixView(7, 5);
-                this.#setBitmaskPixelByMatrixView(8, 5);
-                this.#setBitmaskPixelByMatrixView(7, 6);
-                this.#setBitmaskPixelByMatrixView(8, 6);
+                this.#setBitmaskPixel(7, 5);
+                this.#setBitmaskPixel(8, 5);
+                this.#setBitmaskPixel(7, 6);
+                this.#setBitmaskPixel(8, 6);
             }
 
             if (blinkDigitsState === BlinkState.BLINK_HOURS) {
                 for (let x = 0; x < 8; x++) {
-                    this.#setBitmaskPixelByMatrixView(x, 0);
+                    this.#setBitmaskPixel(x, 0);
                 }
             } else if (blinkDigitsState === BlinkState.BLINK_MINUTES) {
                 for (let x = 8; x < 16; x++) {
-                    this.#setBitmaskPixelByMatrixView(x, 0);
+                    this.#setBitmaskPixel(x, 0);
                 }
             }
         } else {
@@ -425,7 +412,7 @@ class Matrix {
                 [Math.floor(minutes / 10), minutes % 10]
             ];
 
-            const moduleBaseY = [0, 9];
+            const moduleBaseY = [0, 8];
             const digitStartXInModule = [1, 5]; // 2 цифры 3x7, прижаты к правому краю 8x8
 
             for (let moduleIndex = 0; moduleIndex < this.#NUM_DEV; moduleIndex++) {
@@ -440,7 +427,7 @@ class Matrix {
 
                         for (let col = 0; col < 3; col++) {
                             if (((rowMask >> (2 - col)) & 1) === 1) {
-                                this.#setBitmaskPixelByVerticalView(startX + col, baseY + row);
+                                this.#setBitmaskPixel(startX + col, baseY + row);
                             }
                         }
                     }
@@ -450,11 +437,11 @@ class Matrix {
 
             if (blinkDigitsState === BlinkState.BLINK_HOURS) {
                 for (let x = 0; x < 8; x++) {
-                    this.#setBitmaskPixelByVerticalView(x, 7);
+                    this.#setBitmaskPixel(x, 7);
                 }
             } else if (blinkDigitsState === BlinkState.BLINK_MINUTES) {
                 for (let x = 0; x < 8; x++) {
-                    this.#setBitmaskPixelByVerticalView(x, 8);
+                    this.#setBitmaskPixel(x, 8);
                 }
             }
         }
@@ -480,7 +467,7 @@ class Matrix {
             // В горизонтальной ориентации: 16x8 (ширина x высота)
             // startX - начальная позиция по горизонтали
             // startY - начальная позиция по вертикали (обычно 0 или 1)
-            
+
             let currentX = startX;
 
             for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
@@ -514,7 +501,7 @@ class Matrix {
                         const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
 
                         if (bit === 1) {
-                            this.#setBitmaskPixelByMatrixView(
+                            this.#setBitmaskPixel(
                                 currentX + col,
                                 startY + row
                             );
@@ -528,7 +515,7 @@ class Matrix {
             // В вертикальной ориентации: 8x16 (ширина x высота)
             // Текст может быть ориентирован горизонтально или вертикально
             // Для простоты отображаем горизонтально сверху вниз
-            
+
             let currentY = startY;
 
             for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
@@ -555,7 +542,7 @@ class Matrix {
                         const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
 
                         if (bit === 1) {
-                            this.#setBitmaskPixelByVerticalView(
+                            this.#setBitmaskPixel(
                                 startX + col,
                                 currentY + row
                             );
@@ -651,7 +638,7 @@ class Matrix {
         // Вычисляем реальную ширину текста
         let textWidth = 0;
         const normalizedText = this.#scrollingText.toLowerCase();
-        
+
         for (let char of normalizedText) {
             const pattern = this.#alphabet[char];
             if (pattern) {

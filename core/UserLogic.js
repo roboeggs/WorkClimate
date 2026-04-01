@@ -1,4 +1,12 @@
 
+import BaseMode from './../modes/BaseMode.js';
+import SnakeMode from './../modes/Snake.js';
+import TetrisMode from './../modes/Tetris.js';
+import { Orientation } from './../modes/Matrix.js';
+import MultiKeyHandler from './MultiKeyHandler.js';
+import { AppMode, BlinkState, TimeSeparatorState } from './AppConstants.js';
+import { debugLog } from './debug.js';
+
 class ClockMode extends BaseMode {
   enter() {
     this.ctx.activeHandler = this.ctx.boundHandleUserInput;
@@ -17,7 +25,7 @@ class ClockMode extends BaseMode {
   }
 }
 
-class UserLogic {
+export default class UserLogic {
   constructor(matrix) {
     if (!matrix || typeof matrix.setup !== 'function' || typeof matrix.drawNumber !== 'function') {
       throw new Error('Invalid matrix object');
@@ -158,7 +166,7 @@ class UserLogic {
       if (pressType === 'short') {
         this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
         this.printCurrentTime();
-        console.log('Stopped work/rest timer and returned to normal time display.');
+        debugLog('Stopped work/rest timer and returned to normal time display.');
       } else if (pressType === 'long') {
         if (
           this.currentState === UserLogic.DeviceState.DEVICE_STATE_WORKING ||
@@ -168,7 +176,7 @@ class UserLogic {
           this.printCurrentTime();
         } else {
           this.separatorState = !this.separatorState;
-          console.log(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
+          debugLog(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
           this.printCurrentTime();
         }
       }
@@ -304,7 +312,7 @@ class UserLogic {
     this.rtcOffsetMs = targetNow.getTime() - systemNow.getTime();
     this.persistRtcOffset();
 
-    console.log(`RTC emulated time saved: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} (offset ${this.rtcOffsetMs} ms)`);
+    debugLog(`RTC emulated time saved: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} (offset ${this.rtcOffsetMs} ms)`);
     return true;
   }
 

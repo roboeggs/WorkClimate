@@ -1,4 +1,7 @@
-class SnakeMode extends BaseMode {
+import BaseMode from './BaseMode.js';
+import { AppMode } from './../core/AppConstants.js';
+
+export default class SnakeMode extends BaseMode {
   constructor(ctx) {
     super(ctx);
 

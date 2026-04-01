@@ -1,4 +1,6 @@
-class Nrf24l01Emulator {
+import { debugLog } from './debug.js';
+
+export class Nrf24l01Emulator {
     constructor() {
         this.data = 0;
         this.sensors = [];
@@ -31,7 +33,7 @@ class Nrf24l01Emulator {
         }
 
         this.data = this.sensors.length;
-        console.log('[NRF24L01] Sensor announced:', nextSensor, 'Total:', this.sensors.length);
+        debugLog('[NRF24L01] Sensor announced:', nextSensor, 'Total:', this.sensors.length);
         return true;
     }
 
@@ -47,7 +49,7 @@ class Nrf24l01Emulator {
         this.data = this.sensors.length;
 
         if (removed) {
-            console.log('[NRF24L01] Sensor removed:', targetId, 'Total:', this.sensors.length);
+            debugLog('[NRF24L01] Sensor removed:', targetId, 'Total:', this.sensors.length);
         }
 
         return removed;
@@ -58,4 +60,5 @@ class Nrf24l01Emulator {
     }
 }
 
-window.deviceNrf = window.deviceNrf || new Nrf24l01Emulator();
+export const deviceNrf = window.deviceNrf || new Nrf24l01Emulator();
+window.deviceNrf = deviceNrf;
