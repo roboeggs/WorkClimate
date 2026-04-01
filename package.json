@@ -1,0 +1,30 @@
+{
+  "name": "snake",
+  "version": "1.0.0",
+  "description": "Это эмуляция устройства на LED-матрице с двумя режимами:\r 1. Часы\r 2. Тетрис",
+  "main": "Player.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roboeggs/snake.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/roboeggs/snake/issues"
+  },
+  "homepage": "https://github.com/roboeggs/snake#readme",
+  "dependencies": {
+    "p5": "^2.2.3",
+    "p5.sound": "^0.3.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.3"
+  }
+}
