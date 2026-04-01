@@ -20,19 +20,6 @@ class Matrix {
 	#bitmask = Array(16).fill(0x0);
 
 
-    #digitPatterns = [
-        [0xe0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xe0],
-        [0xe0, 0x40, 0x40, 0x40, 0x40, 0x60, 0x40],
-        [0xe0, 0x20, 0x20, 0xe0, 0x80, 0x80, 0xe0],
-        [0xe0, 0x80, 0x80, 0xe0, 0x80, 0x80, 0xe0],
-        [0x80, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xa0],
-        [0xe0, 0x80, 0x80, 0xe0, 0x20, 0x20, 0xe0],
-        [0xe0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0xe0],
-        [0x20, 0x20, 0x20, 0x40, 0x80, 0x80, 0xe0],
-        [0xe0, 0xa0, 0xa0, 0xe0, 0xa0, 0xa0, 0xe0],
-        [0xe0, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xe0]
-    ];
-
     #digits = [
         [0b111, 0b101, 0b101, 0b101, 0b101, 0b101, 0b111], //0
         [0b010, 0b110, 0b010, 0b010, 0b010, 0b010, 0b111], //1
@@ -46,6 +33,36 @@ class Matrix {
         [0b111, 0b101, 0b101, 0b111, 0b001, 0b001, 0b111]  //9
 
     ];
+
+    #alphabet = {
+        'a': [0b0110, 0b1001, 0b1001, 0b1001, 0b1111, 0b1001, 0b1001], 
+        'b': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1110], 
+        'c': [0b0111, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b0111],
+        'd': [0b0001, 0b0001, 0b0111, 0b1001, 0b1001, 0b1001, 0b0111],
+        'e': [0b1111, 0b1000, 0b1000, 0b1110, 0b1000, 0b1000, 0b1111],
+        'f': [0b1111, 0b1000, 0b1000, 0b1111, 0b1000, 0b1000, 0b1000],
+        'g': [0b0110, 0b1001, 0b1000, 0b1011, 0b1001, 0b1001, 0b0110],
+        'h': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1001], 
+        'i': [0b1000, 0b0000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000], 
+        'j': [0b001, 0b0000, 0b001, 0b001, 0b101, 0b101, 0b0010],
+        'k': [0b1001, 0b1010, 0b1100, 0b1110, 0b0001, 0b1001, 0b0001],
+        'l': [0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1111],
+        'm': [0b10001, 0b11011, 0b11011, 0b10101, 0b10001, 0b10001, 0b10001],
+        'n': [0b1010, 0b1101, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001],
+        'o': [0b0110, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0110],
+        'p': [0b1110, 0b1001, 0b1001, 0b1110, 0b0001, 0b0001, 0b0001],
+        'q': [0b01110, 0b10010, 0b10010, 0b10010, 0b01110, 0b00011, 0b00010],
+        'r': [0b1110, 0b1001, 0b1001, 0b1110, 0b1010, 0b1001, 0b1001],
+        's': [0b0110, 0b1001, 0b1000, 0b0110, 0b0001, 0b1001, 0b0110],
+        't': [0b1110, 0b0100, 0b0100, 0b0100, 0b0100, 0b0101, 0b0010],
+        'u': [0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0111],
+        'v': [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
+        'w': [0b10001,0b10001,0b10001,0b10101,0b10101,0b01110,0b01010],
+        'x': [0b1001, 0b1001, 0b1001, 0b0110, 0b1001, 0b1001, 0b1001],
+        'y': [0b1001, 0b1001, 0b1001, 0b0111, 0b0001, 0b1001, 0b0110],
+        'z': [0b1111, 0b0001, 0b0001, 0b0110, 0b1000, 0b1000, 0b1111]
+    }
+
 
     #normalizeOrientation(orientation) {
 
@@ -290,58 +307,6 @@ class Matrix {
         }
     }
 
-    /* =====================================================
-       CLOCK DRAWING
-    ===================================================== */
-
-    drawNumber(hours, minutes, separatorState, blinkDigitsState) {
-        let number = hours * 100 + minutes;
-
-        // Проверка корректности времени
-        if (number > 9999 || hours > 23 || minutes > 59) {
-            return;
-        }
-
-        this.drawNumberBitmask(hours, minutes, separatorState, blinkDigitsState);
-        return;
-
-        // Извлекаем цифры: единицы, десятки, сотни, тысячи
-        const units = [
-            number % 10,           // единицы (младшая цифра)
-            Math.floor(number / 10) % 10,  // десятки
-            Math.floor(number / 100) % 10, // сотни
-            Math.floor(number / 1000)      // тысячи (старшая цифра)
-        ];
-
-        for (let matrixNum = 0; matrixNum < this.#NUM_DEV; matrixNum++) {
-            for (let i = 1; i < 8; i++) {
-                // Получаем данные для двух цифр, отображаемых на текущем устройстве
-                const digit1Data = this.#digitPatterns[units[matrixNum * 2]][i - 1];
-                const digit2Data = this.#digitPatterns[units[matrixNum * 2 + 1]][i - 1];
-
-                // Комбинируем данные с учётом сдвига для правильного позиционирования
-                let combined = (digit1Data >> matrixNum) | (digit2Data >> (4 + matrixNum));
-
-                // Добавляем разделитель (двоеточие), если он должен быть включён
-                if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON && (i === 2 || i === 3 || i === 5 || i === 6)) {
-                    combined |= 0x01 << (matrixNum * 7);
-                }
-
-                // Отправляем данные в соответствующую строку матрицы
-                this.maxWrite(i + (matrixNum * 8), combined);
-            }
-
-            // Управление миганием: часы или минуты
-            if ((blinkDigitsState === BlinkState.BLINK_HOURS && matrixNum === 1) ||
-                (blinkDigitsState === BlinkState.BLINK_MINUTES && matrixNum === 0)) {
-                this.maxWrite(8 * (matrixNum + 1), 0xFF); // Все светодиоды строки включены
-            } else {
-                this.maxWrite(8 * (matrixNum + 1), 0x00); // Все светодиоды строки выключены
-            }
-        }
-        this.draw();
-
-    }
 
     #setBitmaskPixelByMatrixView(x, y) {
         if (x < 0 || x >= 16 || y < 0 || y >= 8) {
@@ -398,7 +363,7 @@ class Matrix {
         }
     }
 
-    drawNumberBitmask(hours, minutes, separatorState, blinkDigitsState) {
+    drawNumber(hours, minutes, separatorState, blinkDigitsState) {
         if (hours > 23 || minutes > 59 || hours < 0 || minutes < 0) {
             return;
         }
@@ -496,5 +461,243 @@ class Matrix {
 
         this.#flushBitmaskToMatrix();
         this.draw();
+    }
+
+    /* =====================================================
+       DRAW STRING
+    ===================================================== */
+
+    drawString(text, startX = 0, startY = 0) {
+        if (!text || typeof text !== 'string') {
+            return false;
+        }
+
+        this.#bitmask.fill(0x0);
+
+        const normalizedText = text.toLowerCase();
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+            // В горизонтальной ориентации: 16x8 (ширина x высота)
+            // startX - начальная позиция по горизонтали
+            // startY - начальная позиция по вертикали (обычно 0 или 1)
+            
+            let currentX = startX;
+
+            for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
+                const char = normalizedText[charIdx];
+                const pattern = this.#alphabet[char];
+
+                if (!pattern) {
+                    // Символ не найден в алфавите, пропускаем или рисуем пробел
+                    currentX += 2;
+                    continue;
+                }
+
+                // Каждый символ имеет высоту 7 пикселей
+                const patternHeight = pattern.length; // обычно 7
+                const charWidth = this.#getCharacterWidth(char);
+
+                // Проверяем, что символ влезает на экран
+                if (currentX + charWidth > 16) {
+                    break;
+                }
+
+                // Рисуем символ
+                for (let row = 0; row < patternHeight; row++) {
+                    const rowMask = pattern[row];
+
+                    // Определяем количество битов в паттерне
+                    const bitsInRow = this.#getPatternWidth(rowMask);
+
+                    for (let col = 0; col < bitsInRow; col++) {
+                        // Берём бит справа налево (как в цифрах)
+                        const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+
+                        if (bit === 1) {
+                            this.#setBitmaskPixelByMatrixView(
+                                currentX + col,
+                                startY + row
+                            );
+                        }
+                    }
+                }
+
+                currentX += charWidth + 1; // +1 пиксель между символами
+            }
+        } else {
+            // В вертикальной ориентации: 8x16 (ширина x высота)
+            // Текст может быть ориентирован горизонтально или вертикально
+            // Для простоты отображаем горизонтально сверху вниз
+            
+            let currentY = startY;
+
+            for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
+                const char = normalizedText[charIdx];
+                const pattern = this.#alphabet[char];
+
+                if (!pattern) {
+                    currentY += 8;
+                    continue;
+                }
+
+                const patternHeight = pattern.length;
+                const charWidth = this.#getCharacterWidth(char);
+
+                if (currentY + patternHeight > 16) {
+                    break;
+                }
+
+                for (let row = 0; row < patternHeight; row++) {
+                    const rowMask = pattern[row];
+                    const bitsInRow = this.#getPatternWidth(rowMask);
+
+                    for (let col = 0; col < bitsInRow; col++) {
+                        const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+
+                        if (bit === 1) {
+                            this.#setBitmaskPixelByVerticalView(
+                                startX + col,
+                                currentY + row
+                            );
+                        }
+                    }
+                }
+
+                currentY += patternHeight + 1;
+            }
+        }
+
+        this.#flushBitmaskToMatrix();
+        this.draw();
+
+        return true;
+    }
+
+    #getCharacterWidth(char) {
+        // Определяем ширину символа по максимальной ширине паттерна
+        const pattern = this.#alphabet[char];
+        if (!pattern || pattern.length === 0) {
+            return 4;
+        }
+
+        let maxWidth = 0;
+        for (let row of pattern) {
+            const width = this.#getPatternWidth(row);
+            if (width > maxWidth) {
+                maxWidth = width;
+            }
+        }
+
+        return maxWidth > 0 ? maxWidth : 4;
+    }
+
+    #getPatternWidth(rowMask) {
+        // Определяем количество значащих битов в маске строки
+        if (rowMask === 0) {
+            return 0;
+        }
+
+        // Находим позицию старшего установленного бита
+        let width = 0;
+        let temp = rowMask;
+        while (temp > 0) {
+            width++;
+            temp >>= 1;
+        }
+
+        return width;
+    }
+
+    /* =====================================================
+       SCROLLING TEXT ANIMATION
+    ===================================================== */
+
+    #scrollingText = '';
+    #scrollPosition = 16;
+    #scrollIntervalMs = 50;    // миллисекунды между шагами смещения
+    #scrollStepPixels = 1;     // пиксели за один шаг
+    #scrollFrameCount = 0;
+    #scrollAnimationId = null;
+    #isScrolling = false;
+
+    startScrollingText(text = '', stepPixels = 0.1, intervalMs = 100) {
+        if (!text || typeof text !== 'string') {
+            return;
+        }
+
+        this.#scrollingText = text.toLowerCase();
+        this.#scrollStepPixels = stepPixels;           // пиксели за один шаг
+        this.#scrollIntervalMs = Math.max(10, intervalMs); // миллисекунды между шагами (минимум 10мс)
+        this.#scrollPosition = 16;
+        this.#scrollFrameCount = 0;
+        this.#isScrolling = true;
+
+        this.#animateScrollWithInterval();
+    }
+
+    stopScrollingText() {
+        this.#isScrolling = false;
+        if (this.#scrollAnimationId !== null) {
+            clearInterval(this.#scrollAnimationId);
+            this.#scrollAnimationId = null;
+        }
+    }
+
+    #animateScrollWithInterval() {
+        if (!this.#isScrolling) {
+            return;
+        }
+
+        // Вычисляем реальную ширину текста
+        let textWidth = 0;
+        const normalizedText = this.#scrollingText.toLowerCase();
+        
+        for (let char of normalizedText) {
+            const pattern = this.#alphabet[char];
+            if (pattern) {
+                textWidth += this.#getCharacterWidth(char) + 1;
+            } else {
+                textWidth += 2;
+            }
+        }
+
+        // Полная дистанция: текст входит справа и выходит полностью влево
+        const totalDistance = 16 + textWidth + 5;
+        const maxSteps = Math.ceil(totalDistance / this.#scrollStepPixels);
+
+        this.#scrollAnimationId = setInterval(() => {
+            if (this.#scrollFrameCount < maxSteps) {
+                // Вычисляем текущую позицию на основе количества шагов
+                const currentX = 16 - (this.#scrollFrameCount * this.#scrollStepPixels);
+                this.drawString(this.#scrollingText, Math.round(currentX), 1);
+
+                this.#scrollFrameCount++;
+            } else {
+                // Анимация завершена
+                this.#isScrolling = false;
+                clearInterval(this.#scrollAnimationId);
+                this.#scrollAnimationId = null;
+            }
+        }, this.#scrollIntervalMs);
+    }
+
+    getScrollSpeed() {
+        return this.#scrollStepPixels;
+    }
+
+    setScrollSpeed(stepPixels) {
+        this.#scrollStepPixels = Math.max(0.1, Math.min(stepPixels, 16));
+    }
+
+    getScrollInterval() {
+        return this.#scrollIntervalMs;
+    }
+
+    setScrollInterval(intervalMs) {
+        this.#scrollIntervalMs = Math.max(10, intervalMs);
+    }
+
+    isScrolling() {
+        return this.#isScrolling;
     }
 }
