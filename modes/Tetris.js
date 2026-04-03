@@ -35,7 +35,6 @@ export default class TetrisMode extends BaseMode {
 		]
 	};
 
-	#bitmap = Array(16).fill(0x0);
 	#bitmask = Array(16).fill(0x0);
 
 
@@ -64,7 +63,6 @@ export default class TetrisMode extends BaseMode {
 		this.isGameOver = false;
 		this.linesCleared = 0;
 		this.#bitmask.fill(0x0);
-		this.#bitmap.fill(0x0);
 		this.currentTetro = this.createFig();
 
 		// Очищаем старый интервал если он есть
@@ -171,7 +169,7 @@ export default class TetrisMode extends BaseMode {
 			}
 		}
 
-		if(this.checkCollision(rotated, this.pos.x, this.pos.y) === TetrisMode.COLLISION_OK){
+		if (this.checkCollision(rotated, this.pos.x, this.pos.y) === TetrisMode.COLLISION_OK) {
 
 			this.currentTetro = rotated; // обновляем текущее состояние
 			this.offset = this.setOffset(rotated);
@@ -276,79 +274,55 @@ export default class TetrisMode extends BaseMode {
 		return { x: arr[0].length - 1, y: arr.length - 1 };
 	}
 
-	matrixDraw(figure, x, y) {
-		this.#bitmap.fill(0);
 
+	matrixDraw(figure, x, y) {
+		const matrix = this.ctx.matrix;
+
+		// очищаем битмаску
+		matrix.clearBitmask();
+
+		// рисуем фигуру
 		for (let i = 0; i < figure.length; i++) {
 			for (let j = 0; j < figure[i].length; j++) {
 				if (figure[i][j] === 1) {
-					const bitmapIndex = y + i;
-					if (bitmapIndex >= 0 && bitmapIndex < this.#bitmap.length) {
-						// Устанавливаем бит в позиции j
-						this.#bitmap[bitmapIndex] |= (1 << (7 - (x + j)));
-					}
+					matrix.setPixel(x + j, y + i);
 				}
 			}
 		}
 
-
-
-		const transformArr = Array(16).fill(0x0);
-
-		for (let i = 0; i < transformArr.length; i++) {
-			let tansMask = 0x00;
-			let n = 0;
-			// Берём колонку, но в перевёрнутом порядке
-			if (i < 8) {
-				n = 8;
-			}
-			else {
-				n = 0;
-			}
-			for (let j = 0; j < 8; j++) {
-				let m = n + j;
-				const col = this.#bitmask[m] | this.#bitmap[m];
-				// Проверяем бит j в колонке col
-				const bit = (col >> (7 - i % 8)) & 1;
-
-				if (bit === 1) {
-					tansMask |= (1 << j);
+		// рисуем уже упавшие блоки
+		for (let row = 0; row < 16; row++) {
+			for (let col = 0; col < 8; col++) {
+				if (this.#bitmask[row] & (1 << (7 - col))) {
+					matrix.setPixel(col, row);
 				}
 			}
-
-			transformArr[i] = tansMask;
 		}
 
-		// this.#bitmap.forEach((num, index) => {
-		// 	const transformNum = transformArr[index];
-		// 	console.log(`${String(index + 1).padStart(2, '0')}: 0b${num.toString(2).padStart(8, '0')} 0b${transformNum.toString(2).padStart(8, '0')}`);
-		// });
-
-
-
-		// Отрисовка на физической матрице
-		for (let matrixNum = 0; matrixNum < 2; matrixNum++) {
-			for (let i = 1; i < 9; i++) {
-				const bitmapIndex = (matrixNum * 8 + i - 1);
-				// let mergeBits = this.#bitmap[bitmapIndex]; // | this.#bitmask[bitmapIndex]
-				let mergeBits = transformArr[bitmapIndex];
-
-				this.ctx.matrix.maxWrite(i + (matrixNum * 8), mergeBits);
-
-			}
-		}
-		// transformArr.forEach((num, index) => {
-		// 	console.log(`Элемент ${index}: 0b${num.toString(2).padStart(8, '0')}`);
-		// });
-
-		this.ctx.matrix.draw();
+		matrix.flush();
+		matrix.draw();
 	}
+
 
 	mergeBitmapToMask() {
-		for (let i = 0; i < this.#bitmap.length; i++) {
-			this.#bitmask[i] |= this.#bitmap[i];
+		if (!this.currentTetro) return;
+
+		for (let i = 0; i < this.currentTetro.length; i++) {
+			for (let j = 0; j < this.currentTetro[i].length; j++) {
+				if (this.currentTetro[i][j] !== 1) continue;
+
+				const bx = this.pos.x + j;
+				const by = this.pos.y + i;
+
+				if (bx < 0 || bx >= 8) continue;
+				if (by < 0 || by >= 16) continue;
+
+				this.#bitmask[by] |= (1 << (7 - bx));
+			}
 		}
 	}
+
+
 
 	checkCollision(figure, x, y) {
 		for (let i = 0; i < figure.length; i++) {

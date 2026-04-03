@@ -18,7 +18,6 @@ export class Matrix {
     #colorLedOFF = 100;
     #brightness = 15; // 0-15 режимов яркости (как в MAX7219)
 
-    // framebuffer (НЕ зависит от orientation)
     #bitmap = Array(16).fill(0x0);
     #bitmask = Array(16).fill(0x0);
 
@@ -290,9 +289,9 @@ export class Matrix {
                 circle(x, y, this.diameter);
             }
         }
-        // this.#bitmap.forEach((num, index) => {
-        //     console.log(`Элемент ${index}: 0b${num.toString(2).padStart(8, '0')}`);
-        // });
+        /* this.#bitmap.forEach((num, index) => {
+            console.log(`Элемент ${index}: 0b${num.toString(2).padStart(8, '0')}`);
+        });*/
     }
 
     /* =====================================================
@@ -315,12 +314,19 @@ export class Matrix {
         }
     }
 
+    setPixel(x, y) {
+        this.#setBitmaskPixel(x, y);
+    }
+
     #setBitmaskPixel(x, y) {
         const mapped = this.mapper.map(x, y);
         if (!mapped) return;
         this.#bitmask[mapped.row] |= (1 << mapped.bitIndex);
     }
 
+    flush() {
+        this.#flushBitmaskToMatrix();
+    }
 
     #flushBitmaskToMatrix() {
         const transformArr = Array(16).fill(0x0);
@@ -350,12 +356,16 @@ export class Matrix {
         }
     }
 
+    clearBitmask(){
+        this.#bitmask.fill(0x0);
+    }
+
     drawNumber(hours, minutes, separatorState, blinkDigitsState) {
         if (hours > 23 || minutes > 59 || hours < 0 || minutes < 0) {
             return;
         }
 
-        this.#bitmask.fill(0x0);
+        this.clearBitmask();
 
         if (this.orientation === Orientation.HORIZONTAL) {
             const digits = [
@@ -459,7 +469,7 @@ export class Matrix {
             return false;
         }
 
-        this.#bitmask.fill(0x0);
+        this.clearBitmask();
 
         const normalizedText = text.toLowerCase();
 
