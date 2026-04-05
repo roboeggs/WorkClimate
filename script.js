@@ -3,8 +3,8 @@ import UserLogic from './core/UserLogic.js';
 
 const DEFAULT_MATRIX_MODULE_HEIGHT = 220;
 const MATRIX_FRAME_PADDING_PX = 26;
-const SCROLL_SPEED_PX_PER_FRAME = 0.003;  // Скорость прокрутки: 0.003 пиксели в кадр (очень медленно)
-const DEMO_DURATION_MS = 300000;         // Длительность демонстрации в миллисекундах (5 минут)
+const GREETING_TEXT = 'HELLO';
+const GREETING_DELAY_MS = 500;
 
 let userInput;
 let matrix;
@@ -30,27 +30,6 @@ function getMatrixModuleHeight() {
   return DEFAULT_MATRIX_MODULE_HEIGHT;
 }
 
-function demonstrateAllSymbols() {
-  if (!matrix) {
-    return;
-  }
-
-  // Демонстрируем все символы алфавита
-  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-  
-  console.log('[Device] Starting symbol demonstration...');
-  // Параметры: текст, пиксели за шаг, интервал в миллисекундах
-  matrix.startScrollingText(alphabet, 0.5, 100);
-
-  // После завершения демонстрации возвращаемся к нормальному режиму
-  setTimeout(() => {
-    matrix.stopScrollingText();
-    userInput.UpdateTime();
-    redraw();
-    console.log('[Device] Symbol demonstration complete');
-  }, DEMO_DURATION_MS);
-}
-
 function setup() {
   matrix = new Matrix(undefined, getMatrixModuleHeight(), Orientation.HORIZONTAL);
   userInput = new UserLogic(matrix);
@@ -64,11 +43,12 @@ function setup() {
 
   // Запускаем обновление в начале следующей минуты
   scheduleNextMinuteUpdate();
-  
-  // Демонстрируем все символы при запуске
-  // setTimeout(() => {
-  //   demonstrateAllSymbols();
-  // }, 500);
+
+  setTimeout(() => {
+    if (matrix) {
+      matrix.startScrollingText(GREETING_TEXT);
+    }
+  }, GREETING_DELAY_MS);
 }
 
 window.setup = setup;

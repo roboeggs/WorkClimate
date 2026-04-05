@@ -55,6 +55,7 @@ export default class UserLogic {
     this.separatorState = true;
     this.rtcOffsetMs = 0;
     this.rtcStorageKey = 'snake.rtcOffsetMs';
+    this.transitionInProgress = false;
 
     this.loadRtcOffset();
 
@@ -137,7 +138,41 @@ export default class UserLogic {
     this.matrix.drawNumber(this.cachedHour, this.cachedMinute, this.getTimeSeparatorState(), BlinkState.BLINK_NONE);
   }
 
+  runTextTransition(label, applyCallback) {
+    if (this.transitionInProgress) {
+      return;
+    }
+
+    this.transitionInProgress = true;
+
+    this.matrix.startScrollingText(label)
+      .then(() => {
+        if (typeof applyCallback === 'function') {
+          applyCallback();
+        }
+      })
+      .finally(() => {
+        this.transitionInProgress = false;
+      });
+  }
+
+  getModeTransitionLabel(nextModeName) {
+    if (nextModeName === AppMode.CLOCK) {
+      return 'CLOCK';
+    }
+
+    if (nextModeName === AppMode.SNAKE || nextModeName === AppMode.TETRIS) {
+      return 'GAME';
+    }
+
+    return '';
+  }
+
   HandleUserInput(btnIdx, pressType) {
+    if (this.transitionInProgress) {
+      return;
+    }
+
     // --- BUTTON 0 (LEFT_ARROW) ---
     if (btnIdx === 0) {
       if (pressType === 'short') {
@@ -148,32 +183,44 @@ export default class UserLogic {
           this.currentState === UserLogic.DeviceState.DEVICE_STATE_RESTING ||
           this.currentState === UserLogic.DeviceState.DEVICE_STATE_NORMAL
         ) {
-          this.currentState = UserLogic.DeviceState.DEVICE_STATE_WORKING;
-          this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
+          this.runTextTransition('WORK', () => {
+            this.currentState = UserLogic.DeviceState.DEVICE_STATE_WORKING;
+            this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
+          });
+          return;
         }
       } else if (pressType === 'long') {
-        this.workHours = 0;
-        this.workMinutes = 0;
-        this.restHours = 0;
-        this.restMinutes = 0;
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-        this.printCurrentTime();
+        this.runTextTransition('CLOCK', () => {
+          this.workHours = 0;
+          this.workMinutes = 0;
+          this.restHours = 0;
+          this.restMinutes = 0;
+          this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
+          this.printCurrentTime();
+        });
+        return;
       }
     }
 
     // --- BUTTON 1 (DOWN_ARROW) ---
     if (btnIdx === 1) {
       if (pressType === 'short') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-        this.printCurrentTime();
-        debugLog('Stopped work/rest timer and returned to normal time display.');
+        this.runTextTransition('clock', () => {
+          this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
+          this.printCurrentTime();
+          debugLog('Stopped work/rest timer and returned to normal time display.');
+        });
+        return;
       } else if (pressType === 'long') {
         if (
           this.currentState === UserLogic.DeviceState.DEVICE_STATE_WORKING ||
           this.currentState === UserLogic.DeviceState.DEVICE_STATE_RESTING
         ) {
-          this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-          this.printCurrentTime();
+          this.runTextTransition('clock', () => {
+            this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
+            this.printCurrentTime();
+          });
+          return;
         } else {
           this.separatorState = !this.separatorState;
           debugLog(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
@@ -189,9 +236,12 @@ export default class UserLogic {
         this.matrix.setBrightness(this.brightness);
         this.matrix.drawNumber(0, this.brightness, TimeSeparatorState.TIME_SEPARATOR_OFF, BlinkState.BLINK_NONE);
       } else if (pressType === 'long') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_HOURS;
-        this.activeHandler = this.boundHandleUserTimeHours; // МЕНЯЕМ ОБРАБОТЧИК
-        this.printCurrentTime();
+        this.runTextTransition('SETTING THE CLOCK', () => {
+          this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_HOURS;
+          this.activeHandler = this.boundHandleUserTimeHours; // МЕНЯЕМ ОБРАБОТЧИК
+          this.printCurrentTime();
+        });
+
       }
     }
 
@@ -213,21 +263,33 @@ export default class UserLogic {
     }
   }
 
-  switchMode(nextModeName) {
+  async switchMode(nextModeName) {
     const nextMode = this.modes[nextModeName];
 
-    if (!nextMode || nextMode === this.currentMode) {
+    if (!nextMode || nextMode === this.currentMode || this.transitionInProgress) {
       return;
     }
 
-    if (this.keyHandler && typeof this.keyHandler.reset === 'function') {
-      this.keyHandler.reset();
-    }
+    this.transitionInProgress = true;
 
-    const prevMode = this.currentMode;
-    prevMode.exit(nextModeName);
-    this.currentMode = nextMode;
-    this.currentMode.enter(prevMode);
+    try {
+      if (this.keyHandler && typeof this.keyHandler.reset === 'function') {
+        this.keyHandler.reset();
+      }
+
+      const prevMode = this.currentMode;
+      prevMode.exit(nextModeName);
+
+      const transitionLabel = this.getModeTransitionLabel(nextModeName);
+      if (transitionLabel) {
+        await this.matrix.startScrollingText(transitionLabel);
+      }
+
+      this.currentMode = nextMode;
+      this.currentMode.enter(prevMode);
+    } finally {
+      this.transitionInProgress = false;
+    }
   }
 
   tick() {
@@ -248,8 +310,11 @@ export default class UserLogic {
 
     // Переход к минутам по долгому нажатию кнопки 2
     if (btnIdx === 1 && pressType === 'long') {
-      this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_MINUTES;
-      this.activeHandler = this.boundHandleUserTimeMinutes;
+      this.runTextTransition('SETTING THE MINUTES', () => {
+        this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_MINUTES;
+        this.activeHandler = this.boundHandleUserTimeMinutes; // МЕНЯЕМ ОБРАБОТЧИК
+        this.printCurrentTime();
+      });
     }
     this.printCurrentTime();
   }

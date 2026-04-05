@@ -36,34 +36,70 @@ export class Matrix {
 
     ];
 
+
+
     #alphabet = {
-        'a': [0b0110, 0b1001, 0b1001, 0b1001, 0b1111, 0b1001, 0b1001],
-        'b': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1110],
-        'c': [0b0111, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b0111],
-        'd': [0b0001, 0b0001, 0b0111, 0b1001, 0b1001, 0b1001, 0b0111],
-        'e': [0b1111, 0b1000, 0b1000, 0b1110, 0b1000, 0b1000, 0b1111],
-        'f': [0b1111, 0b1000, 0b1000, 0b1111, 0b1000, 0b1000, 0b1000],
-        'g': [0b0110, 0b1001, 0b1000, 0b1011, 0b1001, 0b1001, 0b0110],
-        'h': [0b1000, 0b1000, 0b1110, 0b1001, 0b1001, 0b1001, 0b1001],
-        'i': [0b1000, 0b0000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000],
-        'j': [0b001, 0b0000, 0b001, 0b001, 0b101, 0b101, 0b0010],
-        'k': [0b1001, 0b1010, 0b1100, 0b1110, 0b0001, 0b1001, 0b0001],
-        'l': [0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1111],
-        'm': [0b10001, 0b11011, 0b11011, 0b10101, 0b10001, 0b10001, 0b10001],
-        'n': [0b1010, 0b1101, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001],
-        'o': [0b0110, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0110],
-        'p': [0b1110, 0b1001, 0b1001, 0b1110, 0b0001, 0b0001, 0b0001],
-        'q': [0b01110, 0b10010, 0b10010, 0b10010, 0b01110, 0b00011, 0b00010],
-        'r': [0b1110, 0b1001, 0b1001, 0b1110, 0b1010, 0b1001, 0b1001],
-        's': [0b0110, 0b1001, 0b1000, 0b0110, 0b0001, 0b1001, 0b0110],
-        't': [0b1110, 0b0100, 0b0100, 0b0100, 0b0100, 0b0101, 0b0010],
-        'u': [0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0111],
-        'v': [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
-        'w': [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b01110, 0b01010],
-        'x': [0b1001, 0b1001, 0b1001, 0b0110, 0b1001, 0b1001, 0b1001],
-        'y': [0b1001, 0b1001, 0b1001, 0b0111, 0b0001, 0b1001, 0b0110],
-        'z': [0b1111, 0b0001, 0b0001, 0b0110, 0b1000, 0b1000, 0b1111]
-    }
+        // Заглавные буквы (A-Z)
+        'A': [0b00110000, 0b01111000, 0b11001100, 0b11001100, 0b11111100, 0b11001100, 0b11001100, 0b00000000],
+        'B': [0b11111100, 0b01100110, 0b01100110, 0b01111100, 0b01100110, 0b01100110, 0b11111100, 0b00000000],
+        'C': [0b00111100, 0b01100110, 0b11000000, 0b11000000, 0b11000000, 0b01100110, 0b00111100, 0b00000000],
+        'D': [0b11111000, 0b01101100, 0b01100110, 0b01100110, 0b01100110, 0b01101100, 0b11111000, 0b00000000],
+        'E': [0b11111110, 0b01100010, 0b01101000, 0b01111000, 0b01101000, 0b01100010, 0b11111110, 0b00000000],
+        'F': [0b11111110, 0b01100010, 0b01101000, 0b01111000, 0b01101000, 0b01100000, 0b11110000, 0b00000000],
+        'G': [0b00111100, 0b01100110, 0b11000000, 0b11000000, 0b11001110, 0b01100110, 0b00111110, 0b00000000],
+        'H': [0b11001100, 0b11001100, 0b11001100, 0b11111100, 0b11001100, 0b11001100, 0b11001100, 0b00000000],
+        'I': [0b01111000, 0b00110000, 0b00110000, 0b00110000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
+        'J': [0b00011110, 0b00001100, 0b00001100, 0b00001100, 0b11001100, 0b11001100, 0b01111000, 0b00000000],
+        'K': [0b11100110, 0b01100110, 0b01101100, 0b01111000, 0b01101100, 0b01100110, 0b11100110, 0b00000000],
+        'L': [0b11110000, 0b01100000, 0b01100000, 0b01100000, 0b01100010, 0b01100110, 0b11111110, 0b00000000],
+        'M': [0b11000110, 0b11101110, 0b11111110, 0b11111110, 0b11010110, 0b11000110, 0b11000110, 0b00000000],
+        'N': [0b11000110, 0b11100110, 0b11110110, 0b11011110, 0b11001110, 0b11000110, 0b11000110, 0b00000000],
+        'O': [0b00111000, 0b01101100, 0b11000110, 0b11000110, 0b11000110, 0b01101100, 0b00111000, 0b00000000],
+        'P': [0b11111100, 0b01100110, 0b01100110, 0b01111100, 0b01100000, 0b01100000, 0b11110000, 0b00000000],
+        'Q': [0b01111000, 0b11001100, 0b11001100, 0b11001100, 0b11011100, 0b01111000, 0b00011100, 0b00000000],
+        'R': [0b11111100, 0b01100110, 0b01100110, 0b01111100, 0b01101100, 0b01100110, 0b11100110, 0b00000000],
+        'S': [0b01111000, 0b11001100, 0b11100000, 0b01110000, 0b00011100, 0b11001100, 0b01111000, 0b00000000],
+        'T': [0b11111100, 0b10110100, 0b00110000, 0b00110000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
+        'U': [0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b11111100, 0b00000000],
+        'V': [0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b01111000, 0b00110000, 0b00000000],
+        'W': [0b11000110, 0b11000110, 0b11000110, 0b11010110, 0b11111110, 0b11101110, 0b11000110, 0b00000000],
+        'X': [0b11000110, 0b11000110, 0b01101100, 0b00111000, 0b00111000, 0b01101100, 0b11000110, 0b00000000],
+        'Y': [0b11001100, 0b11001100, 0b11001100, 0b01111000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
+        'Z': [0b11111110, 0b11000110, 0b10001100, 0b00011000, 0b00110010, 0b01100110, 0b11111110, 0b00000000],
+
+        // Пробел
+        ' ': [0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000],
+
+        // Строчные буквы (a-z)
+        'a': [0b00000000, 0b00000000, 0b01111000, 0b00001100, 0b01111100, 0b11001100, 0b01110110, 0b00000000],
+        'b': [0b11100000, 0b01100000, 0b01100000, 0b01111100, 0b01100110, 0b01100110, 0b11011100, 0b00000000],
+        'c': [0b00000000, 0b00000000, 0b01111000, 0b11001100, 0b11000000, 0b11001100, 0b01111000, 0b00000000],
+        'd': [0b00011100, 0b00001100, 0b00001100, 0b01111100, 0b11001100, 0b11001100, 0b01110110, 0b00000000],
+        'e': [0b00000000, 0b00000000, 0b01111000, 0b11001100, 0b11111100, 0b11000000, 0b01111000, 0b00000000],
+        'f': [0b00111000, 0b01101100, 0b01100000, 0b11110000, 0b01100000, 0b01100000, 0b11110000, 0b00000000],
+        'g': [0b00000000, 0b00000000, 0b01110110, 0b11001100, 0b11001100, 0b01111100, 0b00001100, 0b11111000],
+        'h': [0b11100000, 0b01100000, 0b01101100, 0b01110110, 0b01100110, 0b01100110, 0b11100110, 0b00000000],
+        'i': [0b00110000, 0b00000000, 0b01110000, 0b00110000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
+        'j': [0b00001100, 0b00000000, 0b00001100, 0b00001100, 0b00001100, 0b11001100, 0b11001100, 0b01111000],
+        'k': [0b11100000, 0b01100000, 0b01100110, 0b01101100, 0b01111000, 0b01101100, 0b11100110, 0b00000000],
+        'l': [0b01110000, 0b00110000, 0b00110000, 0b00110000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
+        'm': [0b00000000, 0b00000000, 0b11001100, 0b11111110, 0b11111110, 0b11010110, 0b11000110, 0b00000000],
+        'n': [0b00000000, 0b00000000, 0b11111000, 0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b00000000],
+        'o': [0b00000000, 0b00000000, 0b01111000, 0b11001100, 0b11001100, 0b11001100, 0b01111000, 0b00000000],
+        'p': [0b00000000, 0b00000000, 0b11011100, 0b01100110, 0b01100110, 0b01111100, 0b01100000, 0b11110000],
+        'q': [0b00000000, 0b00000000, 0b01110110, 0b11001100, 0b11001100, 0b01111100, 0b00001100, 0b00011110],
+        'r': [0b00000000, 0b00000000, 0b11011100, 0b01110110, 0b01100110, 0b01100000, 0b11110000, 0b00000000],
+        's': [0b00000000, 0b00000000, 0b01111100, 0b11000000, 0b01111000, 0b00001100, 0b11111000, 0b00000000],
+        't': [0b00010000, 0b00110000, 0b01111100, 0b00110000, 0b00110000, 0b00110100, 0b00011000, 0b00000000],
+        'u': [0b00000000, 0b00000000, 0b11001100, 0b11001100, 0b11001100, 0b11001100, 0b01110110, 0b00000000],
+        'v': [0b00000000, 0b00000000, 0b11001100, 0b11001100, 0b11001100, 0b01111000, 0b00110000, 0b00000000],
+        'w': [0b00000000, 0b00000000, 0b11000110, 0b11010110, 0b11111110, 0b11111110, 0b01101100, 0b00000000],
+        'x': [0b00000000, 0b00000000, 0b11000110, 0b01101100, 0b00111000, 0b01101100, 0b11000110, 0b00000000],
+        'y': [0b00000000, 0b00000000, 0b11001100, 0b11001100, 0b11001100, 0b01111100, 0b00001100, 0b11111000],
+        'z': [0b00000000, 0b00000000, 0b11111100, 0b10011000, 0b00110000, 0b01100100, 0b11111100, 0b00000000]
+    };
+
+
 
 
     #normalizeOrientation(orientation) {
@@ -89,6 +125,115 @@ export class Matrix {
     }
 
     /* =====================================================
+        const shouldRestoreOrientation = this.orientation === Orientation.VERTICAL && !this.#isScrolling;
+
+        if (shouldRestoreOrientation) {
+            this.changeOrientation();
+        }
+
+        try {
+            this.clearBitmask();
+
+            const normalizedText = text;
+
+            if (this.orientation === Orientation.HORIZONTAL) {
+                // В горизонтальной ориентации: 16x8 (ширина x высота)
+                // startX - начальная позиция по горизонтали
+                // startY - начальная позиция по вертикали (обычно 0 или 1)
+                let currentX = startX;
+
+                for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
+                    const char = normalizedText[charIdx];
+                    const pattern = this.#alphabet[char];
+
+                    if (!pattern) {
+                        // Символ не найден в алфавите, пропускаем или рисуем пробел
+                        currentX += 2;
+                        continue;
+                    }
+
+                    // Каждый символ имеет высоту 7 пикселей
+                    const patternHeight = pattern.length; // обычно 7
+                    const charWidth = this.#getCharacterWidth(char);
+                    const rowOffset =
+                        this.#getBottomAlignOffset(pattern) +
+                        this.#getCharacterRowOffset(char);
+
+                    const maxNum = Math.max(...pattern);
+
+                    // Определяем количество битов в паттерне
+                    const bitsInRow = this.#getPatternWidth(maxNum);
+
+                    // Рисуем символ
+                    for (let row = 0; row < patternHeight; row++) {
+                        const rowMask = pattern[row];
+
+                        for (let col = 0; col < bitsInRow; col++) {
+                            const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+
+                            if (bit === 1) {
+                                this.#setBitmaskPixel(
+                                    currentX + col,
+                                    startY + row + rowOffset
+                                );
+                            }
+                        }
+                    }
+
+                    currentX += charWidth + 1; // +1 пиксель между символами
+                }
+            } else {
+                let currentY = startY;
+
+                for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
+                    const char = normalizedText[charIdx];
+                    const pattern = this.#alphabet[char];
+
+                    if (!pattern) {
+                        currentY += 8;
+                        continue;
+                    }
+
+                    const patternHeight = pattern.length;
+                    const charWidth = this.#getCharacterWidth(char);
+                    const rowOffset =
+                        this.#getBottomAlignOffset(pattern) +
+                        this.#getCharacterRowOffset(char);
+
+                    if (currentY + patternHeight > 16) {
+                        break;
+                    }
+
+                    for (let row = 0; row < patternHeight; row++) {
+                        const rowMask = pattern[row];
+                        const bitsInRow = this.#getPatternWidth(rowMask);
+
+                        for (let col = 0; col < bitsInRow; col++) {
+                            const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+
+                            if (bit === 1) {
+                                this.#setBitmaskPixel(
+                                    startX + col,
+                                    currentY + row + rowOffset
+                                );
+                            }
+                        }
+                    }
+
+                    currentY += patternHeight + 1;
+                }
+            }
+
+            this.#flushBitmaskToMatrix();
+            this.draw();
+
+            return true;
+        } finally {
+            if (shouldRestoreOrientation) {
+                this.orientation = previousOrientation;
+                this.mapper = previousMapper;
+            }
+        }
        CONSTRUCTOR
     ===================================================== */
 
@@ -356,7 +501,7 @@ export class Matrix {
         }
     }
 
-    clearBitmask(){
+    clearBitmask() {
         this.#bitmask.fill(0x0);
     }
 
@@ -469,15 +614,17 @@ export class Matrix {
             return false;
         }
 
-        this.clearBitmask();
+        const shouldRestoreOrientation = this.orientation === Orientation.VERTICAL && !this.#isScrolling;
 
-        const normalizedText = text.toLowerCase();
+        if (shouldRestoreOrientation) {
+            this.changeOrientation();
+        }
 
-        if (this.orientation === Orientation.HORIZONTAL) {
-            // В горизонтальной ориентации: 16x8 (ширина x высота)
-            // startX - начальная позиция по горизонтали
-            // startY - начальная позиция по вертикали (обычно 0 или 1)
+        try {
+            this.clearBitmask();
 
+            const normalizedText = text;
+            const letterSpacing = 2;
             let currentX = startX;
 
             for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
@@ -485,89 +632,48 @@ export class Matrix {
                 const pattern = this.#alphabet[char];
 
                 if (!pattern) {
-                    // Символ не найден в алфавите, пропускаем или рисуем пробел
-                    currentX += 2;
-                    continue;
-                }
-
-                // Каждый символ имеет высоту 7 пикселей
-                const patternHeight = pattern.length; // обычно 7
-                const charWidth = this.#getCharacterWidth(char);
-
-                // Проверяем, что символ влезает на экран
-                if (currentX + charWidth > 16) {
-                    break;
-                }
-
-                // Рисуем символ
-                for (let row = 0; row < patternHeight; row++) {
-                    const rowMask = pattern[row];
-
-                    // Определяем количество битов в паттерне
-                    const bitsInRow = this.#getPatternWidth(rowMask);
-
-                    for (let col = 0; col < bitsInRow; col++) {
-                        // Берём бит справа налево (как в цифрах)
-                        const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
-
-                        if (bit === 1) {
-                            this.#setBitmaskPixel(
-                                currentX + col,
-                                startY + row
-                            );
-                        }
-                    }
-                }
-
-                currentX += charWidth + 1; // +1 пиксель между символами
-            }
-        } else {
-            // В вертикальной ориентации: 8x16 (ширина x высота)
-            // Текст может быть ориентирован горизонтально или вертикально
-            // Для простоты отображаем горизонтально сверху вниз
-
-            let currentY = startY;
-
-            for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
-                const char = normalizedText[charIdx];
-                const pattern = this.#alphabet[char];
-
-                if (!pattern) {
-                    currentY += 8;
+                    currentX += letterSpacing;
                     continue;
                 }
 
                 const patternHeight = pattern.length;
-                const charWidth = this.#getCharacterWidth(char);
+                const glyphMetrics = this.#getGlyphMetrics(pattern);
+                const charWidth = glyphMetrics.width;
+                const rowOffset = this.#getSafeRowOffset(pattern, char, startY);
 
-                if (currentY + patternHeight > 16) {
-                    break;
+                if (charWidth === 0) {
+                    currentX += letterSpacing;
+                    continue;
                 }
 
                 for (let row = 0; row < patternHeight; row++) {
                     const rowMask = pattern[row];
-                    const bitsInRow = this.#getPatternWidth(rowMask);
 
-                    for (let col = 0; col < bitsInRow; col++) {
-                        const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+                    for (let col = 0; col < charWidth; col++) {
+                        const sourceCol = glyphMetrics.minCol + col;
+                        const bit = (rowMask >> (glyphMetrics.bitsInRow - 1 - sourceCol)) & 1;
 
                         if (bit === 1) {
                             this.#setBitmaskPixel(
-                                startX + col,
-                                currentY + row
+                                currentX + col,
+                                startY + row + rowOffset
                             );
                         }
                     }
                 }
 
-                currentY += patternHeight + 1;
+                currentX += charWidth + letterSpacing;
+            }
+
+            this.#flushBitmaskToMatrix();
+            this.draw();
+
+            return true;
+        } finally {
+            if (shouldRestoreOrientation && this.orientation === Orientation.HORIZONTAL) {
+                this.changeOrientation();
             }
         }
-
-        this.#flushBitmaskToMatrix();
-        this.draw();
-
-        return true;
     }
 
     #getCharacterWidth(char) {
@@ -577,15 +683,113 @@ export class Matrix {
             return 4;
         }
 
-        let maxWidth = 0;
-        for (let row of pattern) {
-            const width = this.#getPatternWidth(row);
-            if (width > maxWidth) {
-                maxWidth = width;
+        const glyphMetrics = this.#getGlyphMetrics(pattern);
+        return glyphMetrics.width > 0 ? glyphMetrics.width : 4;
+    }
+
+    #getGlyphMetrics(pattern) {
+        if (!Array.isArray(pattern) || pattern.length === 0) {
+            return { bitsInRow: 0, minCol: 0, width: 0 };
+        }
+
+        const maxNum = Math.max(...pattern);
+        const bitsInRow = this.#getPatternWidth(maxNum);
+        if (bitsInRow === 0) {
+            return { bitsInRow: 0, minCol: 0, width: 0 };
+        }
+
+        let minCol = bitsInRow;
+        let maxCol = -1;
+
+        for (let row = 0; row < pattern.length; row++) {
+            const rowMask = pattern[row];
+
+            for (let col = 0; col < bitsInRow; col++) {
+                const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
+
+                if (bit === 1) {
+                    if (col < minCol) {
+                        minCol = col;
+                    }
+                    if (col > maxCol) {
+                        maxCol = col;
+                    }
+                }
             }
         }
 
-        return maxWidth > 0 ? maxWidth : 4;
+        if (maxCol < minCol) {
+            return { bitsInRow, minCol: 0, width: 0 };
+        }
+
+        return {
+            bitsInRow,
+            minCol,
+            width: maxCol - minCol + 1
+        };
+    }
+
+    #getCharacterRowOffset(char) {
+        if (typeof char !== 'string' || char.length === 0) {
+            return 0;
+        }
+
+        const lower = char.toLowerCase();
+        if (char === lower && char !== char.toUpperCase()) {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    #getSafeRowOffset(pattern, char, baseY) {
+        const rowOffset =
+            this.#getBottomAlignOffset(pattern) +
+            this.#getCharacterRowOffset(char);
+
+        if (!Array.isArray(pattern) || pattern.length === 0) {
+            return rowOffset;
+        }
+
+        let firstNonEmptyRow = -1;
+        for (let i = 0; i < pattern.length; i++) {
+            if (pattern[i] !== 0) {
+                firstNonEmptyRow = i;
+                break;
+            }
+        }
+
+        if (firstNonEmptyRow < 0) {
+            return rowOffset;
+        }
+
+        const topY = baseY + rowOffset + firstNonEmptyRow;
+        if (topY < 0) {
+            return rowOffset - topY;
+        }
+
+        return rowOffset;
+    }
+
+    #getBottomAlignOffset(pattern) {
+        if (!Array.isArray(pattern) || pattern.length === 0) {
+            return 0;
+        }
+
+        let lastNonEmptyRow = -1;
+        for (let i = pattern.length - 1; i >= 0; i--) {
+            if (pattern[i] !== 0) {
+                lastNonEmptyRow = i;
+                break;
+            }
+        }
+
+        if (lastNonEmptyRow < 0) {
+            return 0;
+        }
+
+        // Выравниваем символ по нижней границе 8-пиксельной строки.
+        return (this.#LEDS_PER_MODULE - 1) - lastNonEmptyRow;
     }
 
     #getPatternWidth(rowMask) {
@@ -616,20 +820,33 @@ export class Matrix {
     #scrollFrameCount = 0;
     #scrollAnimationId = null;
     #isScrolling = false;
+    #scrollCompletionResolver = null;
+    #restoreOrientationAfterScroll = false;
 
-    startScrollingText(text = '', stepPixels = 0.1, intervalMs = 100) {
+    startScrollingText(text = '', stepPixels = 1.2, intervalMs = 60) {
         if (!text || typeof text !== 'string') {
-            return;
+            return Promise.resolve(false);
         }
 
-        this.#scrollingText = text.toLowerCase();
+        this.stopScrollingText();
+
+        this.#restoreOrientationAfterScroll = false;
+        if (this.orientation === Orientation.VERTICAL) {
+            this.changeOrientation();
+            this.#restoreOrientationAfterScroll = true;
+        }
+
+        this.#scrollingText = text;
         this.#scrollStepPixels = stepPixels;           // пиксели за один шаг
         this.#scrollIntervalMs = Math.max(10, intervalMs); // миллисекунды между шагами (минимум 10мс)
         this.#scrollPosition = 16;
         this.#scrollFrameCount = 0;
         this.#isScrolling = true;
 
-        this.#animateScrollWithInterval();
+        return new Promise((resolve) => {
+            this.#scrollCompletionResolver = resolve;
+            this.#animateScrollWithInterval();
+        });
     }
 
     stopScrollingText() {
@@ -637,6 +854,30 @@ export class Matrix {
         if (this.#scrollAnimationId !== null) {
             clearInterval(this.#scrollAnimationId);
             this.#scrollAnimationId = null;
+        }
+
+        this.#restoreOrientationAfterScrollingIfNeeded();
+
+        this.#resolveScrollingPromise(false);
+    }
+
+    #restoreOrientationAfterScrollingIfNeeded() {
+        if (!this.#restoreOrientationAfterScroll) {
+            return;
+        }
+
+        this.#restoreOrientationAfterScroll = false;
+
+        if (this.orientation === Orientation.HORIZONTAL) {
+            this.changeOrientation();
+        }
+    }
+
+    #resolveScrollingPromise(completed) {
+        if (this.#scrollCompletionResolver) {
+            const resolve = this.#scrollCompletionResolver;
+            this.#scrollCompletionResolver = null;
+            resolve(completed);
         }
     }
 
@@ -647,14 +888,15 @@ export class Matrix {
 
         // Вычисляем реальную ширину текста
         let textWidth = 0;
-        const normalizedText = this.#scrollingText.toLowerCase();
+        const normalizedText = this.#scrollingText;
+        const letterSpacing = 2;
 
         for (let char of normalizedText) {
             const pattern = this.#alphabet[char];
             if (pattern) {
-                textWidth += this.#getCharacterWidth(char) + 1;
+                textWidth += this.#getCharacterWidth(char) + letterSpacing;
             } else {
-                textWidth += 2;
+                textWidth += letterSpacing;
             }
         }
 
@@ -666,7 +908,7 @@ export class Matrix {
             if (this.#scrollFrameCount < maxSteps) {
                 // Вычисляем текущую позицию на основе количества шагов
                 const currentX = 16 - (this.#scrollFrameCount * this.#scrollStepPixels);
-                this.drawString(this.#scrollingText, Math.round(currentX), 1);
+                this.drawString(this.#scrollingText, Math.round(currentX), 0);
 
                 this.#scrollFrameCount++;
             } else {
@@ -674,6 +916,8 @@ export class Matrix {
                 this.#isScrolling = false;
                 clearInterval(this.#scrollAnimationId);
                 this.#scrollAnimationId = null;
+                this.#restoreOrientationAfterScrollingIfNeeded();
+                this.#resolveScrollingPromise(true);
             }
         }, this.#scrollIntervalMs);
     }
