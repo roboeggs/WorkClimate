@@ -1,3 +1,11 @@
+export const DeviceState = Object.freeze({
+  DEVICE_STATE_NORMAL: 0,
+  DEVICE_STATE_SET_HOURS: 1,
+  DEVICE_STATE_SET_MINUTES: 2,
+  DEVICE_STATE_WORKING: 3,
+  DEVICE_STATE_RESTING: 4
+});
+
 export const TimeSeparatorState = Object.freeze({
   TIME_SEPARATOR_OFF: 0,
   TIME_SEPARATOR_ON: 1
