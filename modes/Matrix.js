@@ -96,7 +96,28 @@ export class Matrix {
         'w': [0b00000000, 0b00000000, 0b11000110, 0b11010110, 0b11111110, 0b11111110, 0b01101100, 0b00000000],
         'x': [0b00000000, 0b00000000, 0b11000110, 0b01101100, 0b00111000, 0b01101100, 0b11000110, 0b00000000],
         'y': [0b00000000, 0b00000000, 0b11001100, 0b11001100, 0b11001100, 0b01111100, 0b00001100, 0b11111000],
-        'z': [0b00000000, 0b00000000, 0b11111100, 0b10011000, 0b00110000, 0b01100100, 0b11111100, 0b00000000]
+        'z': [0b00000000, 0b00000000, 0b11111100, 0b10011000, 0b00110000, 0b01100100, 0b11111100, 0b00000000],
+
+        // Цифры (0-9)
+        '1': [0b00000000, 0b00011000, 0b00011000, 0b00111000, 0b00011000, 0b00011000, 0b00011000, 0b01111110],
+        '2': [0b00000000, 0b00111100, 0b01100110, 0b00000110, 0b00001100, 0b00110000, 0b01100000, 0b01111110],
+        '3': [0b00000000, 0b00111100, 0b01100110, 0b00000110, 0b00011100, 0b00000110, 0b01100110, 0b00111100],
+        '4': [0b00000000, 0b00001100, 0b00011100, 0b00101100, 0b01001100, 0b01111110, 0b00001100, 0b00001100],
+        '5': [0b00000000, 0b01111110, 0b01100000, 0b01111100, 0b00000110, 0b00000110, 0b01100110, 0b00111100],
+        '6': [0b00000000, 0b00111100, 0b01100110, 0b01100000, 0b01111100, 0b01100110, 0b01100110, 0b00111100],
+        '7': [0b00000000, 0b01111110, 0b01100110, 0b00001100, 0b00001100, 0b00011000, 0b00011000, 0b00011000],
+        '8': [0b00000000, 0b00111100, 0b01100110, 0b01100110, 0b00111100, 0b01100110, 0b01100110, 0b00111100],
+        '9': [0b00000000, 0b00111100, 0b01100110, 0b01100110, 0b00111110, 0b00000110, 0b01100110, 0b00111100],
+        '0': [0b00000000, 0b00111100, 0b01100110, 0b01101110, 0b01110110, 0b01100110, 0b01100110, 0b00111100],
+
+        '.': [0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b01100000, 0b01100000],
+        '%': [0b00000000, 0b01100000, 0b01100110, 0b00001100, 0b00011000, 0b00110000, 0b01100110, 0b00000110],
+        '+': [0b00000000, 0b00000000, 0b00001000, 0b00001000, 0b00111110, 0b00001000, 0b00001000, 0b00000000],
+        '-': [0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00111100, 0b00000000, 0b00000000, 0b00000000],
+        ':': [0b00000000, 0b00000000, 0b00011000, 0b00011000, 0b00000000, 0b00011000, 0b00011000, 0b00000000],
+        '°': [0b11000000, 0b11011110, 0b00110011, 0b01100000, 0b01100000, 0b01100000, 0b00110011, 0b00011110]
+
+
     };
 
 
@@ -124,118 +145,7 @@ export class Matrix {
         return Orientation.HORIZONTAL;
     }
 
-    /* =====================================================
-        const shouldRestoreOrientation = this.orientation === Orientation.VERTICAL && !this.#isScrolling;
 
-        if (shouldRestoreOrientation) {
-            this.changeOrientation();
-        }
-
-        try {
-            this.clearBitmask();
-
-            const normalizedText = text;
-
-            if (this.orientation === Orientation.HORIZONTAL) {
-                // В горизонтальной ориентации: 16x8 (ширина x высота)
-                // startX - начальная позиция по горизонтали
-                // startY - начальная позиция по вертикали (обычно 0 или 1)
-                let currentX = startX;
-
-                for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
-                    const char = normalizedText[charIdx];
-                    const pattern = this.#alphabet[char];
-
-                    if (!pattern) {
-                        // Символ не найден в алфавите, пропускаем или рисуем пробел
-                        currentX += 2;
-                        continue;
-                    }
-
-                    // Каждый символ имеет высоту 7 пикселей
-                    const patternHeight = pattern.length; // обычно 7
-                    const charWidth = this.#getCharacterWidth(char);
-                    const rowOffset =
-                        this.#getBottomAlignOffset(pattern) +
-                        this.#getCharacterRowOffset(char);
-
-                    const maxNum = Math.max(...pattern);
-
-                    // Определяем количество битов в паттерне
-                    const bitsInRow = this.#getPatternWidth(maxNum);
-
-                    // Рисуем символ
-                    for (let row = 0; row < patternHeight; row++) {
-                        const rowMask = pattern[row];
-
-                        for (let col = 0; col < bitsInRow; col++) {
-                            const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
-
-                            if (bit === 1) {
-                                this.#setBitmaskPixel(
-                                    currentX + col,
-                                    startY + row + rowOffset
-                                );
-                            }
-                        }
-                    }
-
-                    currentX += charWidth + 1; // +1 пиксель между символами
-                }
-            } else {
-                let currentY = startY;
-
-                for (let charIdx = 0; charIdx < normalizedText.length; charIdx++) {
-                    const char = normalizedText[charIdx];
-                    const pattern = this.#alphabet[char];
-
-                    if (!pattern) {
-                        currentY += 8;
-                        continue;
-                    }
-
-                    const patternHeight = pattern.length;
-                    const charWidth = this.#getCharacterWidth(char);
-                    const rowOffset =
-                        this.#getBottomAlignOffset(pattern) +
-                        this.#getCharacterRowOffset(char);
-
-                    if (currentY + patternHeight > 16) {
-                        break;
-                    }
-
-                    for (let row = 0; row < patternHeight; row++) {
-                        const rowMask = pattern[row];
-                        const bitsInRow = this.#getPatternWidth(rowMask);
-
-                        for (let col = 0; col < bitsInRow; col++) {
-                            const bit = (rowMask >> (bitsInRow - 1 - col)) & 1;
-
-                            if (bit === 1) {
-                                this.#setBitmaskPixel(
-                                    startX + col,
-                                    currentY + row + rowOffset
-                                );
-                            }
-                        }
-                    }
-
-                    currentY += patternHeight + 1;
-                }
-            }
-
-            this.#flushBitmaskToMatrix();
-            this.draw();
-
-            return true;
-        } finally {
-            if (shouldRestoreOrientation) {
-                this.orientation = previousOrientation;
-                this.mapper = previousMapper;
-            }
-        }
-       CONSTRUCTOR
-    ===================================================== */
 
     constructor(
         colorLed = "red",
@@ -743,8 +653,15 @@ export class Matrix {
     }
 
     #getSafeRowOffset(pattern, char, baseY) {
+        // Символы, для которых НЕЛЬЗЯ применять bottom-align
+        const NO_BOTTOM_ALIGN = new Set(['-', ':', '.', ';', '_', '+']);
+
+        const bottomOffset = NO_BOTTOM_ALIGN.has(char)
+            ? 0
+            : this.#getBottomAlignOffset(pattern);
+
         const rowOffset =
-            this.#getBottomAlignOffset(pattern) +
+            bottomOffset +
             this.#getCharacterRowOffset(char);
 
         if (!Array.isArray(pattern) || pattern.length === 0) {
@@ -815,7 +732,7 @@ export class Matrix {
 
     #scrollingText = '';
     #scrollPosition = 16;
-    #scrollIntervalMs = 50;    // миллисекунды между шагами смещения
+    #scrollIntervalMs = 200;    // миллисекунды между шагами смещения
     #scrollStepPixels = 1;     // пиксели за один шаг
     #scrollFrameCount = 0;
     #scrollAnimationId = null;
@@ -823,7 +740,7 @@ export class Matrix {
     #scrollCompletionResolver = null;
     #restoreOrientationAfterScroll = false;
 
-    startScrollingText(text = '', stepPixels = 1.2, intervalMs = 60) {
+    startScrollingText(text = '', stepPixels = 1.2, intervalMs = 80) {
         if (!text || typeof text !== 'string') {
             return Promise.resolve(false);
         }
@@ -839,7 +756,6 @@ export class Matrix {
         this.#scrollingText = text;
         this.#scrollStepPixels = stepPixels;           // пиксели за один шаг
         this.#scrollIntervalMs = Math.max(10, intervalMs); // миллисекунды между шагами (минимум 10мс)
-        this.#scrollPosition = 16;
         this.#scrollFrameCount = 0;
         this.#isScrolling = true;
 

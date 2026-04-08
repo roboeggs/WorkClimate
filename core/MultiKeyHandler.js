@@ -12,6 +12,7 @@ export default class MultiKeyHandler {
     
     // p5.js arrow key constants, defined when p5 loads
     this.LEFT_ARROW = 37;
+    this.UP_ARROW = 38
     this.RIGHT_ARROW = 39;
     this.DOWN_ARROW = 40;
   }
@@ -22,7 +23,7 @@ export default class MultiKeyHandler {
   }
 
   keyPressed(keyCode) {
-    if (![this.LEFT_ARROW, this.RIGHT_ARROW, this.DOWN_ARROW].includes(keyCode)) return;
+    if (![this.LEFT_ARROW, this.RIGHT_ARROW, this.DOWN_ARROW, this.UP_ARROW].includes(keyCode)) return;
 
     if (!this.keys[keyCode]) {
       this.keys[keyCode] = {
@@ -125,6 +126,7 @@ export default class MultiKeyHandler {
       case this.LEFT_ARROW: return "LEFT";
       case this.RIGHT_ARROW: return "RIGHT";
       case this.DOWN_ARROW: return "DOWN";
+      case this.UP_ARROW: return "UP";
       default: return `KEY_${keyCode}`;
     }
   }
@@ -134,6 +136,7 @@ export default class MultiKeyHandler {
     if (keyCode === this.LEFT_ARROW) buttonIndex = 0;
     if (keyCode === this.DOWN_ARROW) buttonIndex = 1;
     if (keyCode === this.RIGHT_ARROW) buttonIndex = 2;
+    if (keyCode === this.UP_ARROW) buttonIndex = 3;
     return buttonIndex;
   }
 

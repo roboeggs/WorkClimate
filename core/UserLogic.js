@@ -1,4 +1,3 @@
-
 import BaseMode from './../modes/BaseMode.js';
 import SnakeMode from './../modes/Snake.js';
 import TetrisMode from './../modes/Tetris.js';
@@ -8,6 +7,7 @@ import { AppMode, BlinkState, TimeSeparatorState, DeviceState } from './AppConst
 import { debugLog } from './debug.js';
 import RTC from './RTC.js';
 import WorkRestTimer from './WorkRestTimer.js';
+import { deviceNrf  } from './nrf24l01.js';
 
 class ClockMode extends BaseMode {
   enter() {
@@ -31,6 +31,15 @@ export default class UserLogic {
     if (!matrix || typeof matrix.setup !== 'function' || typeof matrix.drawNumber !== 'function') {
       throw new Error('Invalid matrix object');
     }
+
+    this.nrfSensors = [];
+    this.nrfSensorIndex = 0;
+    this.lastNrfPollAt = 0;
+    this.nrfPollIntervalMs = 500; // опрос 2 раза в секунду
+    this.nrfMaxSensorAgeMs = 30 * 60 * 1000; // 30 минут
+    this.pendingNewSensors = [];
+    this.knownSensorIds = new Set();
+    this.sensorFlowInProgress = false;
 
     this.brightness = 0x0F; // 16 уровней: 0..15
 
@@ -67,6 +76,36 @@ export default class UserLogic {
 
     this.currentMode = this.modes[AppMode.CLOCK];
     this.currentMode.enter(null);
+
+    this.onSensorAnnounced = (event) => {
+      const sensor = event?.detail?.sensor;
+      const isNew = Boolean(event?.detail?.isNew);
+      const sensorId = Number(sensor?.id);
+
+      if (!Number.isInteger(sensorId)) {
+        return;
+      }
+
+      this.knownSensorIds.add(sensorId);
+
+      if (isNew) {
+        this.pendingNewSensors.push({ ...sensor, id: sensorId });
+      }
+    };
+
+    this.onSensorsCleared = () => {
+      this.nrfSensors = [];
+      this.pendingNewSensors = [];
+      this.knownSensorIds.clear();
+      this.nrfSensorIndex = 0;
+    };
+
+    window.addEventListener('nrf:sensor-announced', this.onSensorAnnounced);
+    window.addEventListener('nrf:sensors-cleared', this.onSensorsCleared);
+    this.pollNrfSensors();
+    this.nrfSensors.forEach((sensor) => {
+      this.knownSensorIds.add(Number(sensor.id));
+    });
 
     // Передаем в MultiKeyHandler функцию-обертку
     this.keyHandler = new MultiKeyHandler(
@@ -109,16 +148,17 @@ export default class UserLogic {
 
   runTextTransition(label, applyCallback) {
     if (this.transitionInProgress) {
-      return;
+      return Promise.resolve(false);
     }
 
     this.transitionInProgress = true;
 
-    this.matrix.startScrollingText(label)
+    return this.matrix.startScrollingText(label)
       .then(() => {
         if (typeof applyCallback === 'function') {
-          applyCallback();
+          return applyCallback();
         }
+        return true;
       })
       .finally(() => {
         this.transitionInProgress = false;
@@ -210,10 +250,50 @@ export default class UserLogic {
     }
   }
 
+  onUpShort() {
+    this.pollNrfSensors();
+
+    if (this.pendingNewSensors.length > 0) {
+      const newSensor = this.pendingNewSensors.shift();
+      this.showNewSensorFlow(newSensor);
+      return;
+    }
+
+    this.showNextSensorIfAny();
+  }
+
 
   onComboLeftRight() {
     this.matrix.changeOrientation();
     this.printCurrentTime();
+  }
+
+  onComboDownUp(){
+    if (this.transitionInProgress || this.sensorFlowInProgress) {
+      return;
+    }
+
+    const removedCount = deviceNrf && typeof deviceNrf.clearSensors === 'function'
+      ? deviceNrf.clearSensors()
+      : 0;
+
+    this.nrfSensors = [];
+    this.pendingNewSensors = [];
+    this.knownSensorIds.clear();
+    this.nrfSensorIndex = 0;
+
+    if (removedCount > 0) {
+      this.sensorFlowInProgress = true;
+      this.runTextTransition('SENSORS CLEARED')
+        .finally(() => {
+          this.sensorFlowInProgress = false;
+          if (this.currentMode === this.modes[AppMode.CLOCK]) {
+            this.printCurrentTime();
+          }
+        });
+    } else {
+      this.printCurrentTime();
+    }
   }
 
 
@@ -224,8 +304,13 @@ export default class UserLogic {
       "1:short": () => this.onDownShort(),
       "2:long": () => this.onRightLong(),
 
+      "3:short": () => this.onUpShort(),
+
       "3:combo": () => this.onComboLeftDown(),
-      "4:combo": () => this.onComboLeftRight()
+      "4:combo": () => this.onComboLeftRight(),
+
+      "6:combo": () => this.onComboDownUp()
+
     };
     map[`${btnIdx}:${pressType}`]?.();
   }
@@ -293,7 +378,7 @@ export default class UserLogic {
 
       const transitionLabel = this.getModeTransitionLabel(nextModeName);
       if (transitionLabel) {
-        await this.matrix.startScrollingText(transitionLabel);
+        await this.runTextTransition(transitionLabel);
       }
 
       this.currentMode = nextMode;
@@ -305,10 +390,15 @@ export default class UserLogic {
 
   tick() {
     this.currentMode.tick();
+    this.pollNrfSensors();
   }
 
   onMinute() {
-    this.currentMode.onMinute();
+    // Обновляем время только когда нет активного текстового перехода.
+    if (!this.transitionInProgress) {
+      this.currentMode.onMinute();
+    }
+    this.pollNrfSensors();
   }
 
   decHour() {
@@ -385,4 +475,90 @@ export default class UserLogic {
 
     this.timer.tick(this.currentState);
   }
+
+
+
+  /* =====================================================
+     NRL24L01 support
+  ===================================================== */
+
+  pollNrfSensors() {
+    const now = Date.now();
+    if (now - this.lastNrfPollAt < this.nrfPollIntervalMs) return;
+    this.lastNrfPollAt = now;
+
+    if (!deviceNrf || typeof deviceNrf.getSensors !== 'function') {
+      this.nrfSensors = [];
+      return;
+    }
+
+    const sensors = deviceNrf.getSensors()
+      .filter((s) => Number.isFinite(Number(s.temperature)))
+      .filter((s) => Number.isInteger(Number(s.id)))
+      .filter((s) => now - Number(s.updatedAt || 0) <= this.nrfMaxSensorAgeMs);
+
+    sensors.sort((a, b) => Number(a.id) - Number(b.id));
+    this.nrfSensors = sensors;
+  }
+
+  formatSensorText(sensor) {
+    const temp = Number(sensor.temperature);
+    const t = temp > 0 ? `+${temp}` : `${temp}`;
+    const hasH = (sensor.type === 'DS18B20') ? 0 : Number.isFinite(Number(sensor.humidity));
+    const degree = "°";
+    if (hasH) {
+      return `Sensore:${sensor.id} ${t}${degree} ${Number(sensor.humidity).toFixed(0)}%`;
+    }
+    return `Sensore:${sensor.id} ${t}${degree}`;
+  }
+
+  showNewSensorFlow(sensor) {
+    if (!sensor || this.sensorFlowInProgress) return;
+    if (this.currentMode !== this.modes[AppMode.CLOCK]) return;
+    if (this.transitionInProgress) return;
+
+    this.sensorFlowInProgress = true;
+
+    this.runTextTransition(`SENSOR ON ${sensor.id}`)
+      .then(() => this.runTextTransition(this.formatSensorText(sensor)))
+      .finally(() => {
+        this.sensorFlowInProgress = false;
+        if (this.currentMode === this.modes[AppMode.CLOCK]) {
+          this.printCurrentTime();
+        }
+      });
+  }
+
+  showNextSensorIfAny() {
+    if (this.currentMode !== this.modes[AppMode.CLOCK]) return;
+    if (this.transitionInProgress || this.sensorFlowInProgress) return;
+
+    this.pollNrfSensors();
+
+    if (!this.nrfSensors.length) {
+      this.sensorFlowInProgress = true;
+      this.runTextTransition('NO SENSOR')
+        .finally(() => {
+          this.sensorFlowInProgress = false;
+          if (this.currentMode === this.modes[AppMode.CLOCK]) {
+            this.printCurrentTime();
+          }
+        });
+      return;
+    }
+
+    const sensor = this.nrfSensors[this.nrfSensorIndex % this.nrfSensors.length];
+    this.nrfSensorIndex = (this.nrfSensorIndex + 1) % this.nrfSensors.length;
+
+    this.sensorFlowInProgress = true;
+    this.runTextTransition(this.formatSensorText(sensor))
+      .finally(() => {
+        this.sensorFlowInProgress = false;
+        // после текста возвращаем обычный экран часов
+        if (this.currentMode === this.modes[AppMode.CLOCK]) {
+          this.printCurrentTime();
+        }
+      });
+  }
+
 }

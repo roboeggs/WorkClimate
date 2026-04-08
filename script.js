@@ -4,7 +4,6 @@ import UserLogic from './core/UserLogic.js';
 const DEFAULT_MATRIX_MODULE_HEIGHT = 220;
 const MATRIX_FRAME_PADDING_PX = 26;
 const GREETING_TEXT = 'HELLO';
-const GREETING_DELAY_MS = 500;
 
 let userInput;
 let matrix;
@@ -44,11 +43,11 @@ function setup() {
   // Запускаем обновление в начале следующей минуты
   scheduleNextMinuteUpdate();
 
-  setTimeout(() => {
-    if (matrix) {
-      matrix.startScrollingText(GREETING_TEXT);
-    }
-  }, GREETING_DELAY_MS);
+  matrix.startScrollingText(GREETING_TEXT)
+    .finally(() => {
+      userInput.onMinute();
+    });
+
 }
 
 window.setup = setup;
@@ -60,20 +59,11 @@ function scheduleNextMinuteUpdate() {
   setTimeout(() => {
     // Обновляем данные текущего режима
     userInput.onMinute();
-    // Перерисовываем экран
-    redraw();
     // Планируем следующее обновление
     scheduleNextMinuteUpdate();
   }, delay);
 }
 
-function draw() {
-
-
-  // userInput.UpdateTime();
-}
-
-window.draw = draw;
 
 function keyPressed() {
   if (!userInput || !userInput.keyHandler) {

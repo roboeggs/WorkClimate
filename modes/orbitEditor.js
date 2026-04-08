@@ -5,15 +5,60 @@ const TEMP_MAX_C = 125;
 const DEFAULT_HUMIDITY = 50;
 const DEFAULT_SENSOR_TYPE = 'DS18B20';
 
-function getOrCreateSensorId(dot) {
-  const existing = dot.dataset.sensorId;
-  if (existing && existing.length > 0) {
+
+/// DEBUG MODE
+
+const DEFAULT_SENSORS = [
+  { id: '1', type: 'DHT22', temperature: 24.3, humidity: 48.0 },
+  { id: '2', type: 'DS18B20', temperature: 26.1, humidity: null },
+  { id: '3', type: 'DHT11', temperature: 23.0, humidity: 56.0 }
+];
+
+function seedDefaultSensors(orbitDots, applyDotLabel, updateDotMeta) {
+  const dots = Array.from(orbitDots);
+  DEFAULT_SENSORS.forEach((sensor, idx) => {
+    const dot = dots[idx];
+    if (!dot) return;
+
+    dot.dataset.sensorId = sensor.id;
+    applyDotLabel(dot, sensor.temperature);
+    updateDotMeta(dot, sensor.type, sensor.humidity);
+
+    if (deviceNrf && typeof deviceNrf.announceSensor === 'function') {
+      deviceNrf.announceSensor({
+        id: sensor.id,
+        type: sensor.type,
+        temperature: sensor.temperature,
+        humidity: sensor.humidity
+      });
+    }
+  });
+}
+
+////
+function getOrCreateSensorId(dot, orbitDots) {
+  const existingRaw = dot.dataset.sensorId;
+  const existing = Number.parseInt(existingRaw, 10);
+
+  if (Number.isInteger(existing) && existing >= 1 && existing <= 100) {
     return existing;
   }
 
-  const generated = `sensor-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-  dot.dataset.sensorId = generated;
-  return generated;
+  const used = new Set(
+    Array.from(orbitDots)
+      .map((d) => Number.parseInt(d.dataset.sensorId, 10))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= 100)
+  );
+
+  for (let id = 1; id <= 100; id++) {
+    if (!used.has(id)) {
+      dot.dataset.sensorId = String(id);
+      return id;
+    }
+  }
+
+  return null;
+
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -124,6 +169,16 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const clearDotVisualState = (dot) => {
+    applyDotLabel(dot, NaN);
+    delete dot.dataset.sensorId;
+    delete dot.dataset.sensorType;
+    delete dot.dataset.humidity;
+    dot.title = '';
+    dot.classList.remove('is-active');
+    dot.classList.remove('is-selected');
+  };
+
   orbitDots.forEach((dot) => {
     dot.setAttribute('role', 'button');
     dot.setAttribute('tabindex', '0');
@@ -175,7 +230,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const humidity = sensorRequiresHumidity(sensorType) ? getHumidityValue() : null;
     updateDotMeta(selectedDot, sensorType, humidity);
 
-    const sensorId = getOrCreateSensorId(selectedDot);
+    const sensorId = getOrCreateSensorId(selectedDot, orbitDots);
+    if (sensorId == null) {
+      tempInput.setCustomValidity('No free sensor id in range 1..100');
+      tempInput.reportValidity();
+      return;
+    }
+
     const announcePayload = {
       id: sensorId,
       type: sensorType,
@@ -201,19 +262,27 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    applyDotLabel(selectedDot, NaN);
-    if (selectedDot.dataset.sensorId && deviceNrf && typeof deviceNrf.removeSensor === 'function') {
-      deviceNrf.removeSensor(selectedDot.dataset.sensorId);
+    const sensorId = selectedDot.dataset.sensorId;
+    if (sensorId && deviceNrf && typeof deviceNrf.removeSensor === 'function') {
+      deviceNrf.removeSensor(sensorId);
     }
-    delete selectedDot.dataset.sensorId;
-    delete selectedDot.dataset.sensorType;
-    delete selectedDot.dataset.humidity;
-    selectedDot.title = '';
-    selectedDot.classList.remove('is-active');
+    clearDotVisualState(selectedDot);
     closeEditor();
   });
 
   cancelButton.addEventListener('click', () => {
     closeEditor();
   });
+
+  ////// ####### DEBUGMODE
+  seedDefaultSensors(orbitDots, applyDotLabel, updateDotMeta);
+  ////////
+
+  window.addEventListener('nrf:sensors-cleared', () => {
+    orbitDots.forEach((dot) => {
+      clearDotVisualState(dot);
+    });
+    closeEditor();
+  });
+
 });
