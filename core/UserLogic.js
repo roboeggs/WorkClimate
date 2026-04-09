@@ -7,7 +7,7 @@ import { AppMode, BlinkState, TimeSeparatorState, DeviceState } from './AppConst
 import { debugLog } from './debug.js';
 import RTC from './RTC.js';
 import WorkRestTimer from './WorkRestTimer.js';
-import { deviceNrf  } from './nrf24l01.js';
+import { deviceNrf } from './nrf24l01.js';
 
 class ClockMode extends BaseMode {
   enter() {
@@ -35,13 +35,13 @@ export default class UserLogic {
     this.nrfSensors = [];
     this.nrfSensorIndex = 0;
     this.lastNrfPollAt = 0;
-    this.nrfPollIntervalMs = 500; // опрос 2 раза в секунду
-    this.nrfMaxSensorAgeMs = 30 * 60 * 1000; // 30 минут
+    this.nrfPollIntervalMs = 500; // Poll sensors twice per second.
+    this.nrfMaxSensorAgeMs = 30 * 60 * 1000; // Ignore sensors older than 30 minutes.
     this.pendingNewSensors = [];
     this.knownSensorIds = new Set();
     this.sensorFlowInProgress = false;
 
-    this.brightness = 0x0F; // 16 уровней: 0..15
+    this.brightness = 0x0F; // 16 levels: 0..15
 
 
     this.stateHandlers = {
@@ -107,7 +107,7 @@ export default class UserLogic {
       this.knownSensorIds.add(Number(sensor.id));
     });
 
-    // Передаем в MultiKeyHandler функцию-обертку
+    // Route key events through the currently active mode.
     this.keyHandler = new MultiKeyHandler(
       (btn, type) => {
         this.currentMode.handleInput(btn, type);
@@ -115,9 +115,9 @@ export default class UserLogic {
       () => this.currentMode === this.modes[AppMode.TETRIS] || this.currentMode === this.modes[AppMode.SNAKE]
     );
 
-    // Запускаем мигание раз в 500мс (полный цикл 1 сек)
+    // Blink separator every 500 ms (full cycle is 1 second).
     this.blinkIntervalId = setInterval(() => {
-      // Это заставит двоеточие мигать само по себе
+      // Keep separator blinking while setting hours or minutes.
       if (
         this.currentState === DeviceState.DEVICE_STATE_SET_HOURS ||
         this.currentState === DeviceState.DEVICE_STATE_SET_MINUTES
@@ -135,7 +135,6 @@ export default class UserLogic {
 
     this.cachedHour = hours;
     this.cachedMinute = minutes;
-
   }
 
   getTimeSeparatorState() {
@@ -268,7 +267,7 @@ export default class UserLogic {
     this.printCurrentTime();
   }
 
-  onComboDownUp(){
+  onComboDownUp() {
     if (this.transitionInProgress || this.sensorFlowInProgress) {
       return;
     }
@@ -331,7 +330,7 @@ export default class UserLogic {
       "1:long": () => this.goToMinutes(),
     };
 
-    this.printCurrentTime(); // ????
+    this.printCurrentTime();
 
 
     map[`${btnIdx}:${pressType}`]?.();
@@ -347,7 +346,7 @@ export default class UserLogic {
       "1:long": () => this.exitTimeSetup(),
     };
 
-    this.printCurrentTime(); // ????
+    this.printCurrentTime();
 
 
     map[`${btnIdx}:${pressType}`]?.();
@@ -395,7 +394,7 @@ export default class UserLogic {
   }
 
   onMinute() {
-    // Обновляем время только когда нет активного текстового перехода.
+    // Update time only when no text transition is active.
     if (!this.transitionInProgress) {
       this.currentMode.onMinute();
     }
@@ -410,7 +409,6 @@ export default class UserLogic {
   incHour() {
     this.cachedHour = (this.cachedHour >= 23) ? 0 : this.cachedHour + 1;
     this.printCurrentTime();
-
   }
 
   goToMinutes() {
@@ -476,8 +474,6 @@ export default class UserLogic {
 
     this.timer.tick(this.currentState);
   }
-
-
 
   /* =====================================================
      NRL24L01 support
@@ -555,7 +551,7 @@ export default class UserLogic {
     this.runTextTransition(this.formatSensorText(sensor))
       .finally(() => {
         this.sensorFlowInProgress = false;
-        // после текста возвращаем обычный экран часов
+        // Return to the clock screen after sensor text.
         if (this.currentMode === this.modes[AppMode.CLOCK]) {
           this.printCurrentTime();
         }

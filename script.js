@@ -40,7 +40,7 @@ function setup() {
     userInput.tick();
   }, 16);
 
-  // Запускаем обновление в начале следующей минуты
+  // Start update exactly at the beginning of the next minute.
   scheduleNextMinuteUpdate();
 
   matrix.startScrollingText(GREETING_TEXT)
@@ -54,12 +54,12 @@ window.setup = setup;
 
 function scheduleNextMinuteUpdate() {
   const now = new Date();
-  // Миллисекунды до следующей минуты: 60 000 − (текущие секунды × 1 000 + миллисекунды)
+  // Milliseconds until next minute: 60,000 - (current seconds * 1,000 + milliseconds)
   const delay = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
   setTimeout(() => {
-    // Обновляем данные текущего режима
+    // Refresh current mode data.
     userInput.onMinute();
-    // Планируем следующее обновление
+    // Schedule the next update.
     scheduleNextMinuteUpdate();
   }, delay);
 }

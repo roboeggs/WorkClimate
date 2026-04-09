@@ -1,129 +1,224 @@
-# LED Matrix Device (Clock + Tetris)
+# WorkClimate
 
-Это эмуляция устройства на LED-матрице с двумя режимами:
-1. Часы
-2. Тетрис
+WorkClimate is a browser-based LED matrix device emulator. It demonstrates the full behavior of the device in a desktop web UI so people can evaluate how useful it is before building hardware.
 
-Приложение запускается через p5.js и управляется тремя кнопками (клавишами): `LEFT`, `DOWN`, `RIGHT`.
+## Overview
 
-## Запуск
+The project started as a simple two-mode Work / Rest timer and evolved into a compact smart desk device:
 
-1. Откройте `APP.html` в браузере.
-2. Рекомендуется запускать через локальный сервер (например Live Server в VS Code).
-3. После старта откроется режим часов.
+- personal productivity timer
+- work-time counter
+- rest tracker
+- mini weather station
+- wireless sensor hub for up to 100 NRF24L01 sensors
+- animated LED matrix with a custom font and UI
+- built-in Snake and Tetris modes
 
-## Соответствие кнопок
+This is a demo emulator, not a hardware installation guide. The goal is to showcase the behavior, controls, and usefulness of the device in the browser.
 
-- `LEFT_ARROW` -> кнопка `0`
-- `DOWN_ARROW` -> кнопка `1`
-- `RIGHT_ARROW` -> кнопка `2`
+## Live Demo
 
-## Типы нажатий
+Open the GitHub Pages demo at [https://roboeggs.github.io/snake/](https://roboeggs.github.io/snake/) to try the device directly in the browser.
 
-Обработчик находится в `MultiKeyHandler.js`.
+## Local Development
 
-1. `short`:
-- короткое нажатие (менее 1000 мс)
+If you want to run or modify the source code locally:
 
-2. `long`:
-- длинное нажатие (1000 мс и более)
+1. Install dependencies: `npm install`
+2. Start the dev server: `npm run dev`
+3. Open the local URL shown by Vite
 
-3. `combo`:
-- удержание двух кнопок одновременно 1000+ мс
-- важная комбинация: `LEFT + RIGHT` (переход между режимами)
+## Features
 
-4. `hold`:
-- повторяемое удержание `DOWN`
-- старт через ~280 мс, затем повтор каждые ~90 мс
-- используется только в режиме Tetris для ускоренного падения
+The emulator includes:
 
-## Режим Clock
+1. Real-time clock display on the LED matrix
+2. Manual hour and minute adjustment
+3. Persistent virtual RTC across page reloads
+4. Work / Rest timer with separate states
+5. NRF sensor display with cycling sensor cards
+6. Snake and Tetris game modes
+7. Orbit editor for testing sensor data
 
-Основная логика в `UserLogic.js`.
+## Buttons and Input Types
 
-### Кнопка LEFT (0)
+The project uses three main buttons:
 
-1. `short`:
-- `WORKING` -> `RESTING`
-- `RESTING` или `NORMAL` -> `WORKING`
+- `LEFT` = button `0`
+- `DOWN` = button `1`
+- `RIGHT` = button `2`
 
-2. `long`:
-- сброс счетчиков работы/отдыха
-- возврат в `NORMAL`
+There is also an `UP` button used for sensor viewing and a few utility actions.
 
-### Кнопка DOWN (1)
+Input types are handled in [core/MultiKeyHandler.js](core/MultiKeyHandler.js):
 
-1. `short`:
-- переход в `NORMAL` (показ часов)
+- `short` — short press
+- `long` — long press
+- `hold` — repeated hold input, used for fast dropping in Tetris
+- `combo` — two buttons pressed together
 
-2. `long`:
-- если текущее состояние `WORKING` или `RESTING`, то переход в `NORMAL`
-- иначе переключает состояние разделителя `:` (ON/OFF)
+## Clock Mode Controls
 
-### Кнопка RIGHT (2)
+All behavior is driven by [core/UserLogic.js](core/UserLogic.js). The sections below describe every supported press.
 
-1. `short`:
-- изменение яркости (цикл 0..15)
+### Entering Game Mode
 
-2. `long`:
-- вход в режим настройки часов (`SET_HOURS`)
+Press `LEFT + DOWN` together from the clock screen.
 
-### Настройка времени
+- If the matrix is in horizontal orientation, WorkClimate opens **Snake**.
+- If the matrix is in vertical orientation, WorkClimate opens **Tetris**.
 
-#### SET_HOURS
+The device shows the transition label `GAME` before entering the selected game.
 
-- `LEFT short`: часы -1
-- `DOWN short`: часы +1
-- `DOWN long`: переход в `SET_MINUTES`
+### Changing Matrix Orientation
 
-#### SET_MINUTES
+Press `LEFT + RIGHT` together.
 
-- `LEFT short`: минуты -1
-- `DOWN short`: минуты +1
-- `LEFT long`: сохранить время и вернуться в `SET_HOURS`
-- `DOWN long`: сохранить время и выйти в `NORMAL`
+- Horizontal orientation (`16x8`) becomes vertical (`8x16`)
+- Vertical orientation (`8x16`) becomes horizontal (`16x8`)
 
-### Переход в Tetris
+The clock remains visible after the change, but the layout is rotated.
 
-- `LEFT + RIGHT` (`combo`) в режиме часов
+## Full Input Reference
 
-## Режим Tetris
+### LEFT button
 
-Логика в `MyTetris.js`.
+`LEFT short`
 
-### Управление
+- In `NORMAL`, switches between work and rest states
+- In `WORKING`, switches to `RESTING`
+- In `RESTING`, switches back to `WORKING`
 
-- `LEFT short`: сдвиг фигуры влево
-- `RIGHT short`: сдвиг фигуры вправо
-- `DOWN short`: поворот фигуры
-- `DOWN long` или `DOWN hold`: ускорить падение вниз
+`LEFT long`
 
-### Выход в Clock
+- Resets the work/rest timer
+- Returns to the normal clock screen
 
-- `LEFT + RIGHT` (`combo`)
+### DOWN button
 
-## Эмуляция RTC (виртуальные часы)
+`DOWN short`
 
-Реализация в `UserLogic.js` (`saveToRTC`, `UpdateTime`, `getRtcNow`).
+- Returns to the normal clock screen from the work/rest timer
 
-Как это работает:
-1. При установке времени вычисляется смещение относительно системного времени (`Date.now()`).
-2. Это смещение сохраняется в `localStorage`.
-3. При каждом обновлении времени используется системное время + сохраненное смещение.
+`DOWN long`
 
-Итог:
-- пользовательское время продолжает идти как часы
-- после перезагрузки страницы время сохраняется (через `localStorage`)
+- If the work/rest timer is active, returns to the clock screen
+- Otherwise toggles the colon between hours and minutes
 
-## Полезные сценарии
+### RIGHT button
 
-1. Установить время:
-- `RIGHT long` -> вход в настройку
-- изменить часы/минуты
-- `DOWN long` в режиме минут для сохранения и выхода
+`RIGHT short`
 
-2. Переключиться в тетрис:
-- `LEFT + RIGHT` (удерживать 1+ сек)
+- Cycles brightness from `0` to `15`
 
-3. Вернуться в часы из тетриса:
-- `LEFT + RIGHT` (удерживать 1+ сек)
+`RIGHT long`
+
+- Opens time setup mode
+
+### UP button
+
+`UP short`
+
+- Shows sensor data on the matrix
+- Cycles through available sensors one by one
+- Shows a notification when a new sensor appears
+- Shows `NO SENSOR` if no sensors are available
+
+### Button Combos
+
+`LEFT + DOWN`
+
+- Opens the game mode
+- Snake is selected in horizontal orientation
+- Tetris is selected in vertical orientation
+
+`LEFT + RIGHT`
+
+- Rotates the matrix orientation
+
+`DOWN + UP`
+
+- Clears the cached sensor list
+
+## Time Setup
+
+After `RIGHT long`, the device enters time setup.
+
+### SET_HOURS
+
+- `LEFT short`: decrease hours by 1
+- `DOWN short`: increase hours by 1
+- `DOWN long`: move to minute setup
+
+### SET_MINUTES
+
+- `LEFT short`: decrease minutes by 1
+- `DOWN short`: increase minutes by 1
+- `LEFT long`: save and return to hour setup
+- `DOWN long`: save and exit to normal clock mode
+
+## Work / Rest Timer
+
+The work/rest timer is a separate state machine used from the normal clock screen.
+
+- `LEFT short`: switch between work and rest
+- `LEFT long`: reset the timer and return to the clock
+- `DOWN short`: stop the timer and return to the clock
+- `DOWN long`: return to the clock, or toggle the colon if the timer is not active
+
+## Snake
+
+Snake is launched with `LEFT + DOWN` when the matrix is horizontal.
+
+- `LEFT short`: move left
+- `RIGHT short`: move right
+- `DOWN short`: rotate the active piece
+- `DOWN hold` or `DOWN long`: speed up falling
+
+## Tetris
+
+Tetris is launched with `LEFT + DOWN` when the matrix is vertical.
+
+- `LEFT short`: move left
+- `RIGHT short`: move right
+- `DOWN short`: rotate the piece
+- `DOWN hold` or `DOWN long`: speed up falling
+- `LEFT + DOWN`: return to the clock screen
+- `LEFT + RIGHT`: rotate the matrix and return to the clock screen
+
+## Virtual RTC
+
+Time is stored as an offset from system time instead of a fixed value. This allows:
+
+- preserving the set time after page reloads
+- keeping the clock running without manual refreshes
+
+The logic lives in [core/RTC.js](core/RTC.js) and is used through [core/UserLogic.js](core/UserLogic.js).
+
+## Orbit Editor
+
+The page includes a sensor editor for testing display behavior. It lets you:
+
+- choose a sensor type
+- set temperature
+- set humidity where applicable
+- save, delete, or cancel changes
+
+## Why This Exists
+
+WorkClimate is a prototype for evaluation. It already demonstrates:
+
+- state management and device logic
+- game logic
+- sensor hub behavior
+- a responsive and readable UI
+
+The project is intended to help assess whether the device is useful before adapting it to real hardware.
+
+## Project Structure
+
+- [core/](core) — shared logic, timers, RTC, and input handling
+- [modes/](modes) — clock, game modes, and matrix rendering
+- [mappers/](mappers) — coordinate mapping for matrix orientations
+- [libraries/](libraries) — p5.js and sound plugins
+- [main.js](main.js) — application entry point and p5.js bootstrap

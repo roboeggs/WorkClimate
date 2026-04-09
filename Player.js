@@ -4,7 +4,7 @@ class Player{
     };
 
     setup(){
-        this.osc.amp(0);     // громкость 0 (пока не включили)
+        this.osc.amp(0);     // volume 0 (until enabled)
         this.osc.start(); 
     };
 

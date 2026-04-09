@@ -1,7 +1,7 @@
 {
-  "name": "LED-Clock",
+  "name": "workclimate",
   "version": "1.0.0",
-  "description": "Это эмуляция устройства на LED-матрице с двумя режимами:\r 1. Часы\r 2. Тетрис",
+  "description": "A browser-based LED matrix device emulator that demonstrates the WorkClimate concept with clock, game, and sensor modes.",
   "main": "Player.js",
   "scripts": {
     "dev": "vite",
