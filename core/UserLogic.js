@@ -302,6 +302,7 @@ export default class UserLogic {
       "0:short": () => this.onLeftShort(),
       "0:long": () => this.onLeftLong(),
       "1:short": () => this.onDownShort(),
+      "2:short": () => this.onRightShort(),
       "2:long": () => this.onRightLong(),
 
       "3:short": () => this.onUpShort(),
