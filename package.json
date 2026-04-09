@@ -24,8 +24,7 @@
   },
   "homepage": "https://github.com/roboeggs/snake#readme",
   "dependencies": {
-    "p5": "^2.2.3",
-    "p5.sound": "^0.3.0"
+    "p5": "^2.2.3"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.8",

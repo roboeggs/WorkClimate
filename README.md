@@ -220,5 +220,5 @@ The project is intended to help assess whether the device is useful before adapt
 - [core/](core) — shared logic, timers, RTC, and input handling
 - [modes/](modes) — clock, game modes, and matrix rendering
 - [mappers/](mappers) — coordinate mapping for matrix orientations
-- [libraries/](libraries) — p5.js and sound plugins
+- [libraries/](libraries) — p5.js and related assets
 - [main.js](main.js) — application entry point and p5.js bootstrap

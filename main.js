@@ -11,8 +11,3 @@ import { debugLog, initDebugFromUrl } from './core/debug.js';
 
 initDebugFromUrl();
 debugLog('[debug] startup complete');
-
-// Optional audio addon for p5.
-import('p5.sound').catch((err) => {
-	console.warn('p5.sound failed to load:', err);
-});
