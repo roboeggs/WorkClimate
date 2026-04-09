@@ -18,7 +18,7 @@ This is a demo emulator, not a hardware installation guide. The goal is to showc
 
 ## Live Demo
 
-Open the GitHub Pages demo at [https://roboeggs.github.io/snake/](https://roboeggs.github.io/snake/) to try the device directly in the browser.
+Open the GitHub Pages demo at [https://roboeggs.github.io/WorkClimate/](https://roboeggs.github.io/WorkClimate/) to try the device directly in the browser.
 
 ## Local Development
 

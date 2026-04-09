@@ -22,7 +22,7 @@
   "bugs": {
     "url": "https://github.com/roboeggs/snake/issues"
   },
-  "homepage": "https://github.com/roboeggs/snake#readme",
+  "homepage": "https://roboeggs.github.io/WorkClimate/",
   "dependencies": {
     "p5": "^2.2.3"
   },
