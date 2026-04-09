@@ -1,7 +1,7 @@
 import HorizontalMapper from './HorizontalMapper.js';
 import VerticalMapper from './VerticalMapper.js';
 
-// Небольшой адаптер для Matrix: единый метод установки пикселя
+// Small adapter for Matrix: unified pixel-set method.
 export function createMapperForOrientation(orientation) {
   if (orientation === 1) { // Orientation.VERTICAL
     return new VerticalMapper();

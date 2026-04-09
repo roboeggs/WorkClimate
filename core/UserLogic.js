@@ -1,22 +1,23 @@
-
 import BaseMode from './../modes/BaseMode.js';
 import SnakeMode from './../modes/Snake.js';
 import TetrisMode from './../modes/Tetris.js';
 import { Orientation } from './../modes/Matrix.js';
 import MultiKeyHandler from './MultiKeyHandler.js';
-import { AppMode, BlinkState, TimeSeparatorState } from './AppConstants.js';
+import { AppMode, BlinkState, TimeSeparatorState, DeviceState } from './AppConstants.js';
 import { debugLog } from './debug.js';
+import RTC from './RTC.js';
+import WorkRestTimer from './WorkRestTimer.js';
+import { deviceNrf } from './nrf24l01.js';
 
 class ClockMode extends BaseMode {
   enter() {
-    this.ctx.activeHandler = this.ctx.boundHandleUserInput;
-    this.ctx.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
+    this.ctx.currentState = DeviceState.DEVICE_STATE_NORMAL;
     this.ctx.UpdateTime();
     this.ctx.printCurrentTime();
   }
 
   handleInput(btnIdx, pressType) {
-    this.ctx.activeHandler(btnIdx, pressType);
+    this.ctx.handleInput(btnIdx, pressType);
   }
 
   onMinute() {
@@ -31,32 +32,38 @@ export default class UserLogic {
       throw new Error('Invalid matrix object');
     }
 
-    this.brightness = 0x0F; // 16 уровней: 0..15
+    this.nrfSensors = [];
+    this.nrfSensorIndex = 0;
+    this.lastNrfPollAt = 0;
+    this.nrfPollIntervalMs = 500; // Poll sensors twice per second.
+    this.nrfMaxSensorAgeMs = 30 * 60 * 1000; // Ignore sensors older than 30 minutes.
+    this.pendingNewSensors = [];
+    this.knownSensorIds = new Set();
+    this.sensorFlowInProgress = false;
 
-    // Привязываем методы к контексту 'this'
-    this.boundHandleUserInput = this.HandleUserInput.bind(this);
-    this.boundHandleUserTimeMinutes = this.HandleUserTimeMinutes.bind(this);
-    this.boundHandleUserTimeHours = this.HandleUserTimeHours.bind(this);
+    this.brightness = 0x0F; // 16 levels: 0..15
 
-    // Устанавливаем начальный обработчик
-    this.activeHandler = this.boundHandleUserInput;
+
+    this.stateHandlers = {
+      [DeviceState.DEVICE_STATE_NORMAL]: this.handleNormal,
+      [DeviceState.DEVICE_STATE_SET_HOURS]: this.handleSetHours,
+      [DeviceState.DEVICE_STATE_SET_MINUTES]: this.handleSetMinutes,
+      [DeviceState.DEVICE_STATE_WORKING]: this.handleWorking,
+      [DeviceState.DEVICE_STATE_RESTING]: this.handleResting,
+    };
+
 
     this.matrix = matrix;
-    this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
+    this.currentState = DeviceState.DEVICE_STATE_NORMAL;
 
     this.cachedHour = 0;
     this.cachedMinute = 0;
 
-    this.workHours = 0;
-    this.workMinutes = 0;
-    this.restHours = 0;
-    this.restMinutes = 0;
-
     this.separatorState = true;
-    this.rtcOffsetMs = 0;
-    this.rtcStorageKey = 'snake.rtcOffsetMs';
+    this.transitionInProgress = false;
 
-    this.loadRtcOffset();
+    this.rtc = new RTC();
+    this.timer = new WorkRestTimer(this.matrix, () => this.getTimeSeparatorState());
 
     this.matrix.setup();
     this.matrix.setBrightness(this.brightness);
@@ -70,7 +77,37 @@ export default class UserLogic {
     this.currentMode = this.modes[AppMode.CLOCK];
     this.currentMode.enter(null);
 
-    // Передаем в MultiKeyHandler функцию-обертку
+    this.onSensorAnnounced = (event) => {
+      const sensor = event?.detail?.sensor;
+      const isNew = Boolean(event?.detail?.isNew);
+      const sensorId = Number(sensor?.id);
+
+      if (!Number.isInteger(sensorId)) {
+        return;
+      }
+
+      this.knownSensorIds.add(sensorId);
+
+      if (isNew) {
+        this.pendingNewSensors.push({ ...sensor, id: sensorId });
+      }
+    };
+
+    this.onSensorsCleared = () => {
+      this.nrfSensors = [];
+      this.pendingNewSensors = [];
+      this.knownSensorIds.clear();
+      this.nrfSensorIndex = 0;
+    };
+
+    window.addEventListener('nrf:sensor-announced', this.onSensorAnnounced);
+    window.addEventListener('nrf:sensors-cleared', this.onSensorsCleared);
+    this.pollNrfSensors();
+    this.nrfSensors.forEach((sensor) => {
+      this.knownSensorIds.add(Number(sensor.id));
+    });
+
+    // Route key events through the currently active mode.
     this.keyHandler = new MultiKeyHandler(
       (btn, type) => {
         this.currentMode.handleInput(btn, type);
@@ -78,12 +115,12 @@ export default class UserLogic {
       () => this.currentMode === this.modes[AppMode.TETRIS] || this.currentMode === this.modes[AppMode.SNAKE]
     );
 
-    // Запускаем мигание раз в 500мс (полный цикл 1 сек)
+    // Blink separator every 500 ms (full cycle is 1 second).
     this.blinkIntervalId = setInterval(() => {
-      // Это заставит двоеточие мигать само по себе
+      // Keep separator blinking while setting hours or minutes.
       if (
-        this.currentState === UserLogic.DeviceState.DEVICE_STATE_SET_HOURS ||
-        this.currentState === UserLogic.DeviceState.DEVICE_STATE_SET_MINUTES
+        this.currentState === DeviceState.DEVICE_STATE_SET_HOURS ||
+        this.currentState === DeviceState.DEVICE_STATE_SET_MINUTES
       ) {
         this.separatorState = !this.separatorState;
         this.printCurrentTime();
@@ -92,41 +129,12 @@ export default class UserLogic {
   }
 
   UpdateTime() {
-    const now = this.getRtcNow();
+    const now = this.rtc.now();
     const hours = now.getHours();
     const minutes = now.getMinutes();
 
     this.cachedHour = hours;
     this.cachedMinute = minutes;
-
-  }
-
-  getRtcNow() {
-    return new Date(Date.now() + this.rtcOffsetMs);
-  }
-
-  loadRtcOffset() {
-    try {
-      const raw = localStorage.getItem(this.rtcStorageKey);
-      if (raw === null) {
-        return;
-      }
-
-      const parsed = Number(raw);
-      if (Number.isFinite(parsed)) {
-        this.rtcOffsetMs = parsed;
-      }
-    } catch (err) {
-      console.warn('RTC offset load failed:', err);
-    }
-  }
-
-  persistRtcOffset() {
-    try {
-      localStorage.setItem(this.rtcStorageKey, String(this.rtcOffsetMs));
-    } catch (err) {
-      console.warn('RTC offset save failed:', err);
-    }
   }
 
   getTimeSeparatorState() {
@@ -137,154 +145,307 @@ export default class UserLogic {
     this.matrix.drawNumber(this.cachedHour, this.cachedMinute, this.getTimeSeparatorState(), BlinkState.BLINK_NONE);
   }
 
-  HandleUserInput(btnIdx, pressType) {
-    // --- BUTTON 0 (LEFT_ARROW) ---
-    if (btnIdx === 0) {
-      if (pressType === 'short') {
-        if (this.currentState === UserLogic.DeviceState.DEVICE_STATE_WORKING) {
-          this.currentState = UserLogic.DeviceState.DEVICE_STATE_RESTING;
-          this.matrix.drawNumber(this.restHours, this.restMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_MINUTES);
-        } else if (
-          this.currentState === UserLogic.DeviceState.DEVICE_STATE_RESTING ||
-          this.currentState === UserLogic.DeviceState.DEVICE_STATE_NORMAL
-        ) {
-          this.currentState = UserLogic.DeviceState.DEVICE_STATE_WORKING;
-          this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
+  runTextTransition(label, applyCallback) {
+    if (this.transitionInProgress) {
+      return Promise.resolve(false);
+    }
+
+    this.transitionInProgress = true;
+
+    return this.matrix.startScrollingText(label)
+      .then(() => {
+        if (typeof applyCallback === 'function') {
+          return applyCallback();
         }
-      } else if (pressType === 'long') {
-        this.workHours = 0;
-        this.workMinutes = 0;
-        this.restHours = 0;
-        this.restMinutes = 0;
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-        this.printCurrentTime();
-      }
+        return true;
+      })
+      .finally(() => {
+        this.transitionInProgress = false;
+      });
+  }
+
+  getModeTransitionLabel(nextModeName) {
+    if (nextModeName === AppMode.CLOCK) {
+      return 'CLOCK';
     }
 
-    // --- BUTTON 1 (DOWN_ARROW) ---
-    if (btnIdx === 1) {
-      if (pressType === 'short') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-        this.printCurrentTime();
-        debugLog('Stopped work/rest timer and returned to normal time display.');
-      } else if (pressType === 'long') {
-        if (
-          this.currentState === UserLogic.DeviceState.DEVICE_STATE_WORKING ||
-          this.currentState === UserLogic.DeviceState.DEVICE_STATE_RESTING
-        ) {
-          this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-          this.printCurrentTime();
-        } else {
-          this.separatorState = !this.separatorState;
-          debugLog(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
-          this.printCurrentTime();
-        }
-      }
+    if (nextModeName === AppMode.SNAKE || nextModeName === AppMode.TETRIS) {
+      return 'GAME';
     }
 
-    // --- BUTTON 2 (RIGHT_ARROW) ---
-    if (btnIdx === 2) {
-      if (pressType === 'short') {
-        this.brightness = (this.brightness + 1) & 0x0F; // Cycle 0-15
-        this.matrix.setBrightness(this.brightness);
-        this.matrix.drawNumber(0, this.brightness, TimeSeparatorState.TIME_SEPARATOR_OFF, BlinkState.BLINK_NONE);
-      } else if (pressType === 'long') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_HOURS;
-        this.activeHandler = this.boundHandleUserTimeHours; // МЕНЯЕМ ОБРАБОТЧИК
-        this.printCurrentTime();
-      }
-    }
+    return '';
+  }
 
-    if (pressType === 'combo') {
-      switch (btnIdx) {
-        case 3: // LEFT + DOWN
-          if (this.matrix.orientation === Orientation.HORIZONTAL) {
-            this.switchMode(AppMode.SNAKE);
-          } else {
-            this.switchMode(AppMode.TETRIS);
-          }
-          break;
-        case 4: // LEFT + RIGHT
-          // this.switchMode(AppMode.TETRIS);
-          this.matrix.changeOrientation();
-          this.printCurrentTime();
-          break;
-      }
+
+  onLeftShort() {
+    if (this.currentState === DeviceState.DEVICE_STATE_WORKING) {
+      this.currentState = DeviceState.DEVICE_STATE_RESTING;
+      const restTime = this.timer.getRestTime();
+      this.matrix.drawNumber(restTime.hours, restTime.minutes, this.getTimeSeparatorState(), BlinkState.BLINK_MINUTES);
+    } else if (
+      this.currentState === DeviceState.DEVICE_STATE_RESTING ||
+      this.currentState === DeviceState.DEVICE_STATE_NORMAL
+    ) {
+      this.runTextTransition('WORK', () => {
+        this.currentState = DeviceState.DEVICE_STATE_WORKING;
+        const workTime = this.timer.getWorkTime();
+        this.matrix.drawNumber(workTime.hours, workTime.minutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
+      });
+      return;
     }
   }
 
-  switchMode(nextModeName) {
-    const nextMode = this.modes[nextModeName];
+  onLeftLong() {
+    this.runTextTransition('CLOCK', () => {
+      this.timer.reset();
+      this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+      this.printCurrentTime();
+    });
+  }
 
-    if (!nextMode || nextMode === this.currentMode) {
+  onDownShort() {
+    this.runTextTransition('CLOCK', () => {
+      this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+      this.printCurrentTime();
+      debugLog('Stopped work/rest timer and returned to normal time display.');
+    });
+  }
+
+  onDownLong() {
+    if (
+      this.currentState === DeviceState.DEVICE_STATE_WORKING ||
+      this.currentState === DeviceState.DEVICE_STATE_RESTING
+    ) {
+      this.runTextTransition('CLOCK', () => {
+        this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+        this.printCurrentTime();
+      });
+      return;
+    } else {
+      this.separatorState = !this.separatorState;
+      debugLog(`Separator state toggled: ${this.separatorState ? 'ON' : 'OFF'}`);
+      this.printCurrentTime();
+    }
+  }
+
+  onRightShort() {
+    this.brightness = (this.brightness + 1) & 0x0F; // Cycle 0-15
+    this.matrix.setBrightness(this.brightness);
+    this.matrix.drawNumber(0, this.brightness, TimeSeparatorState.TIME_SEPARATOR_OFF, BlinkState.BLINK_NONE);
+  }
+
+  onRightLong() {
+    this.runTextTransition('SETTING THE CLOCK', () => {
+      this.currentState = DeviceState.DEVICE_STATE_SET_HOURS;
+      this.printCurrentTime();
+    });
+  }
+
+  onComboLeftDown() {
+    if (this.matrix.orientation === Orientation.HORIZONTAL) {
+      this.switchMode(AppMode.SNAKE);
+    } else {
+      this.switchMode(AppMode.TETRIS);
+    }
+  }
+
+  onUpShort() {
+    this.pollNrfSensors();
+
+    if (this.pendingNewSensors.length > 0) {
+      const newSensor = this.pendingNewSensors.shift();
+      this.showNewSensorFlow(newSensor);
       return;
     }
 
-    if (this.keyHandler && typeof this.keyHandler.reset === 'function') {
-      this.keyHandler.reset();
+    this.showNextSensorIfAny();
+  }
+
+
+  onComboLeftRight() {
+    this.matrix.changeOrientation();
+    this.printCurrentTime();
+  }
+
+  onComboDownUp() {
+    if (this.transitionInProgress || this.sensorFlowInProgress) {
+      return;
     }
 
-    const prevMode = this.currentMode;
-    prevMode.exit(nextModeName);
-    this.currentMode = nextMode;
-    this.currentMode.enter(prevMode);
+    const removedCount = deviceNrf && typeof deviceNrf.clearSensors === 'function'
+      ? deviceNrf.clearSensors()
+      : 0;
+
+    this.nrfSensors = [];
+    this.pendingNewSensors = [];
+    this.knownSensorIds.clear();
+    this.nrfSensorIndex = 0;
+
+    if (removedCount > 0) {
+      this.sensorFlowInProgress = true;
+      this.runTextTransition('SENSORS CLEARED')
+        .finally(() => {
+          this.sensorFlowInProgress = false;
+          if (this.currentMode === this.modes[AppMode.CLOCK]) {
+            this.printCurrentTime();
+          }
+        });
+    } else {
+      this.printCurrentTime();
+    }
+  }
+
+
+  handleNormal(btnIdx, pressType) {
+    const map = {
+      "0:short": () => this.onLeftShort(),
+      "0:long": () => this.onLeftLong(),
+      "1:short": () => this.onDownShort(),
+      "2:short": () => this.onRightShort(),
+      "2:long": () => this.onRightLong(),
+
+      "3:short": () => this.onUpShort(),
+
+      "3:combo": () => this.onComboLeftDown(),
+      "4:combo": () => this.onComboLeftRight(),
+
+      "6:combo": () => this.onComboDownUp()
+
+    };
+    map[`${btnIdx}:${pressType}`]?.();
+  }
+
+  handleWorking(btnIdx, pressType) {
+    this.handleNormal(btnIdx, pressType);
+  }
+
+  handleResting(btnIdx, pressType) {
+    this.handleNormal(btnIdx, pressType);
+  }
+
+  handleSetHours(btnIdx, pressType) {
+    const map = {
+      "0:short": () => this.decHour(),
+      "1:short": () => this.incHour(),
+      "1:long": () => this.goToMinutes(),
+    };
+
+    this.printCurrentTime();
+
+
+    map[`${btnIdx}:${pressType}`]?.();
+  }
+
+
+  handleSetMinutes(btnIdx, pressType) {
+    const map = {
+      "0:short": () => this.decMinute(),
+      "1:short": () => this.incMinute(),
+
+      "0:long": () => this.goToHours(),
+      "1:long": () => this.exitTimeSetup(),
+    };
+
+    this.printCurrentTime();
+
+
+    map[`${btnIdx}:${pressType}`]?.();
+  }
+
+  handleInput(btnIdx, pressType) {
+    if (this.transitionInProgress) return;
+
+    const handler = this.stateHandlers[this.currentState];
+    handler?.call(this, btnIdx, pressType);
+  }
+
+  async switchMode(nextModeName) {
+    const nextMode = this.modes[nextModeName];
+
+    if (!nextMode || nextMode === this.currentMode || this.transitionInProgress) {
+      return;
+    }
+
+    this.transitionInProgress = true;
+
+    try {
+      if (this.keyHandler && typeof this.keyHandler.reset === 'function') {
+        this.keyHandler.reset();
+      }
+
+      const prevMode = this.currentMode;
+      prevMode.exit(nextModeName);
+
+      const transitionLabel = this.getModeTransitionLabel(nextModeName);
+      if (transitionLabel) {
+        await this.runTextTransition(transitionLabel);
+      }
+
+      this.currentMode = nextMode;
+      this.currentMode.enter(prevMode);
+    } finally {
+      this.transitionInProgress = false;
+    }
   }
 
   tick() {
     this.currentMode.tick();
+    this.pollNrfSensors();
   }
 
   onMinute() {
-    this.currentMode.onMinute();
+    // Update time only when no text transition is active.
+    if (!this.transitionInProgress) {
+      this.currentMode.onMinute();
+    }
+    this.pollNrfSensors();
   }
 
-  HandleUserTimeHours(btnIdx, pressType) {
-    if (btnIdx === 0 && pressType === 'short') {
-      this.cachedHour = (this.cachedHour <= 0) ? 23 : this.cachedHour - 1;
-    }
-    if (btnIdx === 1 && pressType === 'short') {
-      this.cachedHour = (this.cachedHour >= 23) ? 0 : this.cachedHour + 1;
-    }
-
-    // Переход к минутам по долгому нажатию кнопки 2
-    if (btnIdx === 1 && pressType === 'long') {
-      this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_MINUTES;
-      this.activeHandler = this.boundHandleUserTimeMinutes;
-    }
+  decHour() {
+    this.cachedHour = (this.cachedHour <= 0) ? 23 : this.cachedHour - 1;
     this.printCurrentTime();
   }
 
-  HandleUserTimeMinutes(btnIdx, pressType) {
-    // BUTTON 0 (LEFT_ARROW)
-    if (btnIdx === 0) {
-      if (pressType === 'short') {
-        this.cachedMinute--;
-        if (this.cachedMinute < 0) {
-          this.cachedMinute = 59;
-        }
-      } else if (pressType === 'long') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_SET_HOURS;
-        this.activeHandler = this.boundHandleUserTimeHours; // ВОЗВРАЩАЕМ ОБРАБОТЧИК
-        this.saveToRTC();
-      }
-    }
-
-    // BUTTON 1 (RIGHT_ARROW)
-    if (btnIdx === 1) {
-      if (pressType === 'short') {
-        this.cachedMinute++;
-        if (this.cachedMinute > 59) {
-          this.cachedMinute = 0;
-        }
-      } else if (pressType === 'long') {
-        this.currentState = UserLogic.DeviceState.DEVICE_STATE_NORMAL;
-        this.activeHandler = this.boundHandleUserInput; // ВОЗВРАЩАЕМ ОБРАБОТЧИК
-        this.saveToRTC();
-      }
-    }
-    // Update the display (this uses your translated print_time from earlier)
+  incHour() {
+    this.cachedHour = (this.cachedHour >= 23) ? 0 : this.cachedHour + 1;
     this.printCurrentTime();
   }
+
+  goToMinutes() {
+    this.runTextTransition('SETTING THE MINUTES', () => {
+      this.currentState = DeviceState.DEVICE_STATE_SET_MINUTES;
+      this.printCurrentTime();
+    });
+  }
+
+  goToHours() {
+    this.saveToRTC();
+    this.currentState =
+      DeviceState.DEVICE_STATE_SET_HOURS;
+  }
+
+
+  decMinute() {
+    this.cachedMinute--;
+    if (this.cachedMinute < 0) {
+      this.cachedMinute = 59;
+    }
+  }
+  incMinute() {
+    this.cachedMinute++;
+    if (this.cachedMinute > 59) {
+      this.cachedMinute = 0;
+    }
+  }
+
+  exitTimeSetup() {
+    this.currentState = DeviceState.DEVICE_STATE_NORMAL;
+    this.saveToRTC();
+  }
+
+
+
+
 
   setTime(hours, minutes, seconds = 0) {
     this.saveToRTC(hours, minutes, seconds);
@@ -293,65 +454,108 @@ export default class UserLogic {
   }
 
   saveToRTC(hours = this.cachedHour, minutes = this.cachedMinute, seconds = 0) {
-    const h = Number(hours);
-    const m = Number(minutes);
-    const s = Number(seconds);
-
-    if (
-      !Number.isInteger(h) || !Number.isInteger(m) || !Number.isInteger(s) ||
-      h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59
-    ) {
-      console.warn('Invalid RTC time:', { hours, minutes, seconds });
+    const saved = this.rtc.save(hours, minutes, seconds);
+    if (!saved) {
       return false;
     }
 
-    const systemNow = new Date();
-    const targetNow = new Date(systemNow);
-    targetNow.setHours(h, m, s, 0);
-
-    this.rtcOffsetMs = targetNow.getTime() - systemNow.getTime();
-    this.persistRtcOffset();
-
-    debugLog(`RTC emulated time saved: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} (offset ${this.rtcOffsetMs} ms)`);
+    const h = Number(hours);
+    const m = Number(minutes);
+    const s = Number(seconds);
+    debugLog(`RTC emulated time saved: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} (offset ${this.rtc.offsetMs} ms)`);
     return true;
   }
 
   UpdateTimeTracking() {
-    if (this.currentState == UserLogic.DeviceState.DEVICE_STATE_WORKING) {
-      this.workMinutes++;
-      if (this.workMinutes >= 60) {
-        this.workMinutes = 0;
-        if (this.workHours >= 99) {
-          this.workHours = 0;
-        }
-        else {
-          this.workHours++;
-        }
-      }
-      this.matrix.drawNumber(this.workHours, this.workMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_HOURS);
-    } else if (this.currentState == UserLogic.DeviceState.DEVICE_STATE_RESTING) {
-      this.restMinutes++;
-      if (this.restMinutes >= 60) {
-        this.restMinutes = 0;
-        if (this.restHours >= 99) {
-          this.restHours = 0;
-        }
-        else {
-          this.restHours++;
-        }
-      }
-      this.matrix.drawNumber(this.restHours, this.restMinutes, this.getTimeSeparatorState(), BlinkState.BLINK_MINUTES);
-    } else if (this.currentState == UserLogic.DeviceState.DEVICE_STATE_NORMAL) {
-      // Disolay the current time from the DS1307
+    if (this.currentState === DeviceState.DEVICE_STATE_NORMAL) {
       this.printCurrentTime();
+      return;
     }
-  }
-}
 
-UserLogic.DeviceState = Object.freeze({
-  DEVICE_STATE_NORMAL: 0,
-  DEVICE_STATE_SET_HOURS: 1,
-  DEVICE_STATE_SET_MINUTES: 2,
-  DEVICE_STATE_WORKING: 3,
-  DEVICE_STATE_RESTING: 4
-});
+    this.timer.tick(this.currentState);
+  }
+
+  /* =====================================================
+     NRL24L01 support
+  ===================================================== */
+
+  pollNrfSensors() {
+    const now = Date.now();
+    if (now - this.lastNrfPollAt < this.nrfPollIntervalMs) return;
+    this.lastNrfPollAt = now;
+
+    if (!deviceNrf || typeof deviceNrf.getSensors !== 'function') {
+      this.nrfSensors = [];
+      return;
+    }
+
+    const sensors = deviceNrf.getSensors()
+      .filter((s) => Number.isFinite(Number(s.temperature)))
+      .filter((s) => Number.isInteger(Number(s.id)))
+      .filter((s) => now - Number(s.updatedAt || 0) <= this.nrfMaxSensorAgeMs);
+
+    sensors.sort((a, b) => Number(a.id) - Number(b.id));
+    this.nrfSensors = sensors;
+  }
+
+  formatSensorText(sensor) {
+    const temp = Number(sensor.temperature);
+    const t = temp > 0 ? `+${temp}` : `${temp}`;
+    const hasH = (sensor.type === 'DS18B20') ? 0 : Number.isFinite(Number(sensor.humidity));
+    const degree = "°";
+    if (hasH) {
+      return `Sensore:${sensor.id} ${t}${degree} ${Number(sensor.humidity).toFixed(0)}%`;
+    }
+    return `Sensore:${sensor.id} ${t}${degree}`;
+  }
+
+  showNewSensorFlow(sensor) {
+    if (!sensor || this.sensorFlowInProgress) return;
+    if (this.currentMode !== this.modes[AppMode.CLOCK]) return;
+    if (this.transitionInProgress) return;
+
+    this.sensorFlowInProgress = true;
+
+    this.runTextTransition(`SENSOR ON ${sensor.id}`)
+      .then(() => this.runTextTransition(this.formatSensorText(sensor)))
+      .finally(() => {
+        this.sensorFlowInProgress = false;
+        if (this.currentMode === this.modes[AppMode.CLOCK]) {
+          this.printCurrentTime();
+        }
+      });
+  }
+
+  showNextSensorIfAny() {
+    if (this.currentMode !== this.modes[AppMode.CLOCK]) return;
+    if (this.transitionInProgress || this.sensorFlowInProgress) return;
+
+    this.pollNrfSensors();
+
+    if (!this.nrfSensors.length) {
+      this.sensorFlowInProgress = true;
+      this.runTextTransition('NO SENSOR')
+        .finally(() => {
+          this.sensorFlowInProgress = false;
+          if (this.currentMode === this.modes[AppMode.CLOCK]) {
+            this.printCurrentTime();
+          }
+        });
+      return;
+    }
+
+    const sensor = this.nrfSensors[this.nrfSensorIndex % this.nrfSensors.length];
+    this.nrfSensorIndex = (this.nrfSensorIndex + 1) % this.nrfSensors.length;
+
+    this.sensorFlowInProgress = true;
+    this.runTextTransition(this.formatSensorText(sensor))
+      .finally(() => {
+        this.sensorFlowInProgress = false;
+        // Return to the clock screen after sensor text.
+        if (this.currentMode === this.modes[AppMode.CLOCK]) {
+          this.printCurrentTime();
+        }
+      });
+  }
+
+}

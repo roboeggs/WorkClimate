@@ -7,13 +7,13 @@ export class Nrf24l01Emulator {
     }
 
     announceSensor(sensorPayload) {
-        const sensorId = String(sensorPayload?.id ?? '').trim();
+        const sensorId = Number.parseInt(sensorPayload?.id, 10);
         const sensorType = String(sensorPayload?.type ?? '').trim();
         const temperature = Number(sensorPayload?.temperature);
         const humidityRaw = sensorPayload?.humidity;
         const humidity = humidityRaw == null ? null : Number(humidityRaw);
-
-        if (!sensorId || !sensorType || !Number.isFinite(temperature)) {
+        
+        if (!Number.isInteger(sensorId) || sensorId < 1 || sensorId > 100 || !sensorType || !Number.isFinite(temperature)) {
             return false;
         }
 
@@ -26,6 +26,7 @@ export class Nrf24l01Emulator {
         };
 
         const existingIdx = this.sensors.findIndex((item) => item.id === sensorId);
+        const isNew = existingIdx < 0;
         if (existingIdx >= 0) {
             this.sensors[existingIdx] = nextSensor;
         } else {
@@ -34,12 +35,24 @@ export class Nrf24l01Emulator {
 
         this.data = this.sensors.length;
         debugLog('[NRF24L01] Sensor announced:', nextSensor, 'Total:', this.sensors.length);
+
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+                new CustomEvent('nrf:sensor-announced', {
+                    detail: {
+                        sensor: { ...nextSensor },
+                        isNew
+                    }
+                })
+            );
+        }
+
         return true;
     }
 
     removeSensor(sensorId) {
-        const targetId = String(sensorId ?? '').trim();
-        if (!targetId) {
+        const targetId = Number.parseInt(sensorId, 10);
+        if (!Number.isInteger(targetId) || targetId < 1 || targetId > 100) {
             return false;
         }
 
@@ -53,6 +66,27 @@ export class Nrf24l01Emulator {
         }
 
         return removed;
+    }
+
+    clearSensors() {
+        const removedCount = this.sensors.length;
+        if (removedCount === 0) {
+            return 0;
+        }
+
+        this.sensors = [];
+        this.data = 0;
+        debugLog('[NRF24L01] All sensors cleared. Total: 0');
+
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+                new CustomEvent('nrf:sensors-cleared', {
+                    detail: { removedCount }
+                })
+            );
+        }
+
+        return removedCount;
     }
 
     getSensors() {

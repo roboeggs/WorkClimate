@@ -12,6 +12,7 @@ export default class MultiKeyHandler {
     
     // p5.js arrow key constants, defined when p5 loads
     this.LEFT_ARROW = 37;
+    this.UP_ARROW = 38
     this.RIGHT_ARROW = 39;
     this.DOWN_ARROW = 40;
   }
@@ -22,7 +23,7 @@ export default class MultiKeyHandler {
   }
 
   keyPressed(keyCode) {
-    if (![this.LEFT_ARROW, this.RIGHT_ARROW, this.DOWN_ARROW].includes(keyCode)) return;
+    if (![this.LEFT_ARROW, this.RIGHT_ARROW, this.DOWN_ARROW, this.UP_ARROW].includes(keyCode)) return;
 
     if (!this.keys[keyCode]) {
       this.keys[keyCode] = {
@@ -35,12 +36,12 @@ export default class MultiKeyHandler {
       };
     }
 
-    this.comboHandled = false; // сбрасываем при новом нажатии
+    this.comboHandled = false; // Reset when a new key is pressed.
   }
 
   keyReleased(keyCode) {
     const keyData = this.keys[keyCode];
-      // Если клавиша участвовала в комбо — игнорируем
+      // If the key participated in a combo, ignore it.
     if (!keyData) return;
     if (keyData.inCombo) {
       delete this.keys[keyCode];
@@ -71,7 +72,7 @@ export default class MultiKeyHandler {
 
     const pressedKeys = Object.keys(this.keys).map(k => Number(k));
 
-    // === Проверка комбинации из двух клавиш ===
+    // === Check two-key combo ===
     if (pressedKeys.length === 2 && !this.comboHandled) {
       const [k1, k2] = pressedKeys;
       const d1 = currentTime - this.keys[k1].pressTime;
@@ -84,7 +85,7 @@ export default class MultiKeyHandler {
 
         this.onButtonAction(this.getPressedButton(k1) + this.getPressedButton(k2) + 2, 'combo');
 
-        // После combo сразу очищаем состояние клавиш, чтобы не было "залипших" нажатий.
+        // Clear state immediately after combo to avoid stuck keys.
         this.reset();
         return;
       }
@@ -125,6 +126,7 @@ export default class MultiKeyHandler {
       case this.LEFT_ARROW: return "LEFT";
       case this.RIGHT_ARROW: return "RIGHT";
       case this.DOWN_ARROW: return "DOWN";
+      case this.UP_ARROW: return "UP";
       default: return `KEY_${keyCode}`;
     }
   }
@@ -134,6 +136,7 @@ export default class MultiKeyHandler {
     if (keyCode === this.LEFT_ARROW) buttonIndex = 0;
     if (keyCode === this.DOWN_ARROW) buttonIndex = 1;
     if (keyCode === this.RIGHT_ARROW) buttonIndex = 2;
+    if (keyCode === this.UP_ARROW) buttonIndex = 3;
     return buttonIndex;
   }
 
