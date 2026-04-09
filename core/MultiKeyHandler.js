@@ -36,12 +36,12 @@ export default class MultiKeyHandler {
       };
     }
 
-    this.comboHandled = false; // сбрасываем при новом нажатии
+    this.comboHandled = false; // Reset when a new key is pressed.
   }
 
   keyReleased(keyCode) {
     const keyData = this.keys[keyCode];
-      // Если клавиша участвовала в комбо — игнорируем
+      // If the key participated in a combo, ignore it.
     if (!keyData) return;
     if (keyData.inCombo) {
       delete this.keys[keyCode];
@@ -72,7 +72,7 @@ export default class MultiKeyHandler {
 
     const pressedKeys = Object.keys(this.keys).map(k => Number(k));
 
-    // === Проверка комбинации из двух клавиш ===
+    // === Check two-key combo ===
     if (pressedKeys.length === 2 && !this.comboHandled) {
       const [k1, k2] = pressedKeys;
       const d1 = currentTime - this.keys[k1].pressTime;
@@ -85,7 +85,7 @@ export default class MultiKeyHandler {
 
         this.onButtonAction(this.getPressedButton(k1) + this.getPressedButton(k2) + 2, 'combo');
 
-        // После combo сразу очищаем состояние клавиш, чтобы не было "залипших" нажатий.
+        // Clear state immediately after combo to avoid stuck keys.
         this.reset();
         return;
       }

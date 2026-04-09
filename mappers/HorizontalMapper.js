@@ -1,7 +1,7 @@
 import CoordinateMapper from './CoordinateMapper.js';
 
 export default class HorizontalMapper extends CoordinateMapper {
-  // логическая область: x 0..15, y 0..7
+  // Logical area: x 0..15, y 0..7
   map(x, y) {
     if (x < 0 || x >= 16 || y < 0 || y >= 8) return null;
 

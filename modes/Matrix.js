@@ -2,8 +2,8 @@ import { createMapperForOrientation } from './../mappers/mapper-adapter.js';
 import { BlinkState, TimeSeparatorState } from './../core/AppConstants.js';
 
 export const Orientation = {
-    HORIZONTAL: 0, // 2 модуля в ряд
-    VERTICAL: 1    // 2 модуля колонкой
+    HORIZONTAL: 0, // 2 modules in a row
+    VERTICAL: 1    // 2 modules in a column
 };
 
 export class Matrix {
@@ -16,7 +16,7 @@ export class Matrix {
     #NUM_DEV = 2;
 
     #colorLedOFF = 100;
-    #brightness = 15; // 0-15 режимов яркости (как в MAX7219)
+    #brightness = 15; // 0-15 brightness levels (like MAX7219)
 
     #bitmap = Array(16).fill(0x0);
     #bitmask = Array(16).fill(0x0);
@@ -39,7 +39,7 @@ export class Matrix {
 
 
     #alphabet = {
-        // Заглавные буквы (A-Z)
+        // Uppercase letters (A-Z)
         'A': [0b00110000, 0b01111000, 0b11001100, 0b11001100, 0b11111100, 0b11001100, 0b11001100, 0b00000000],
         'B': [0b11111100, 0b01100110, 0b01100110, 0b01111100, 0b01100110, 0b01100110, 0b11111100, 0b00000000],
         'C': [0b00111100, 0b01100110, 0b11000000, 0b11000000, 0b11000000, 0b01100110, 0b00111100, 0b00000000],
@@ -67,10 +67,10 @@ export class Matrix {
         'Y': [0b11001100, 0b11001100, 0b11001100, 0b01111000, 0b00110000, 0b00110000, 0b01111000, 0b00000000],
         'Z': [0b11111110, 0b11000110, 0b10001100, 0b00011000, 0b00110010, 0b01100110, 0b11111110, 0b00000000],
 
-        // Пробел
+        // Space
         ' ': [0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000],
 
-        // Строчные буквы (a-z)
+        // Lowercase letters (a-z)
         'a': [0b00000000, 0b00000000, 0b01111000, 0b00001100, 0b01111100, 0b11001100, 0b01110110, 0b00000000],
         'b': [0b11100000, 0b01100000, 0b01100000, 0b01111100, 0b01100110, 0b01100110, 0b11011100, 0b00000000],
         'c': [0b00000000, 0b00000000, 0b01111000, 0b11001100, 0b11000000, 0b11001100, 0b01111000, 0b00000000],
@@ -98,7 +98,7 @@ export class Matrix {
         'y': [0b00000000, 0b00000000, 0b11001100, 0b11001100, 0b11001100, 0b01111100, 0b00001100, 0b11111000],
         'z': [0b00000000, 0b00000000, 0b11111100, 0b10011000, 0b00110000, 0b01100100, 0b11111100, 0b00000000],
 
-        // Цифры (0-9)
+        // Digits (0-9)
         '1': [0b00000000, 0b00011000, 0b00011000, 0b00111000, 0b00011000, 0b00011000, 0b00011000, 0b01111110],
         '2': [0b00000000, 0b00111100, 0b01100110, 0b00000110, 0b00001100, 0b00110000, 0b01100000, 0b01111110],
         '3': [0b00000000, 0b00111100, 0b01100110, 0b00000110, 0b00011100, 0b00000110, 0b01100110, 0b00111100],
@@ -160,13 +160,13 @@ export class Matrix {
 
         this.mapper = createMapperForOrientation(this.orientation);
 
-        // расстояние между LED
+        // Distance between LEDs
         this.step = this.moduleSize / this.#LEDS_PER_MODULE;
 
-        // диаметр кружка LED
+        // LED circle diameter
         this.diameter = this.step * 0.8;
 
-        // вычисляем размер canvas
+        // Compute canvas size
         this.#recalculateCanvasSize();
     }
 
@@ -229,7 +229,7 @@ export class Matrix {
     ===================================================== */
 
     setBrightness(brightness) {
-        // brightness: 0-15 (16 режимов)
+        // brightness: 0-15 (16 levels)
         this.#brightness = constrain(brightness, 0, 15);
         redraw();
     }
@@ -287,13 +287,13 @@ export class Matrix {
 
         if (this.orientation === Orientation.HORIZONTAL) {
 
-            // логическая матрица 16x8
+            // Logical matrix 16x8
             x = col * this.step + this.step / 2;
             y = row * this.step + this.step / 2;
 
         } else {
 
-            // логическая матрица 8x16
+            // Logical matrix 8x16
             x = this.moduleSize - row * this.step - this.step / 2;
             y = col * this.step + this.step / 2;
         }
@@ -312,7 +312,7 @@ export class Matrix {
 
 
         for (let row = 0; row < this.#LEDS_PER_MODULE; row++) {
-            // Берём строку снизу вверх
+            // Read rows bottom to top
             const highByte = this.#bitmap[this.#LEDS_PER_MODULE - 1 - row];
             const lowByte = this.#bitmap[this.#LEDS_PER_MODULE * 2 - 1 - row];
 
@@ -320,18 +320,17 @@ export class Matrix {
 
             for (let col = 0; col < this.#LEDS_PER_MODULE * 2; col++) {
 
-                // Берём бит справа налево
+                // Read bits right to left
                 const bitIndex = col;
                 const bit = (byte >> bitIndex) & 1;
 
-                // Координаты кружка
+                // LED circle coordinates
                 const { x, y } =
                     this.#getPixelPosition(row, col);
 
                 if (bit) {
-                    // Используем яркость для модификации цвета включённого LED
-                    // brightness: 0-15, но с минимальным порогом,
-                    // чтобы LED не уходили в полностью чёрный.
+                    // Use brightness to adjust active LED color.
+                    // Keep a minimum alpha so LEDs never become fully black.
                     const minAlpha = 150;
                     const alpha = minAlpha + (this.#brightness / 15) * (255 - minAlpha);
                     const onColor = color(this.colorLedON);
@@ -344,9 +343,6 @@ export class Matrix {
                 circle(x, y, this.diameter);
             }
         }
-        /* this.#bitmap.forEach((num, index) => {
-            console.log(`Элемент ${index}: 0b${num.toString(2).padStart(8, '0')}`);
-        });*/
     }
 
     /* =====================================================
@@ -449,13 +445,13 @@ export class Matrix {
             }
 
             if (separatorState === TimeSeparatorState.TIME_SEPARATOR_ON) {
-                // Верхняя симметричная точка 2x2
+                // Upper symmetric 2x2 dot
                 this.#setBitmaskPixel(7, 2);
                 this.#setBitmaskPixel(8, 2);
                 this.#setBitmaskPixel(7, 3);
                 this.#setBitmaskPixel(8, 3);
 
-                // Нижняя симметричная точка 2x2
+                // Lower symmetric 2x2 dot
                 this.#setBitmaskPixel(7, 5);
                 this.#setBitmaskPixel(8, 5);
                 this.#setBitmaskPixel(7, 6);
@@ -478,7 +474,7 @@ export class Matrix {
             ];
 
             const moduleBaseY = [0, 8];
-            const digitStartXInModule = [1, 5]; // 2 цифры 3x7, прижаты к правому краю 8x8
+            const digitStartXInModule = [1, 5]; // Two 3x7 digits aligned to the right edge of 8x8.
 
             for (let moduleIndex = 0; moduleIndex < this.#NUM_DEV; moduleIndex++) {
                 const baseY = moduleBaseY[moduleIndex];
@@ -498,7 +494,7 @@ export class Matrix {
                     }
                 }
             }
-            // В вертикальной ориентации разделитель не рисуем.
+            // Do not draw separator in vertical orientation.
 
             if (blinkDigitsState === BlinkState.BLINK_HOURS) {
                 for (let x = 0; x < 8; x++) {
@@ -587,7 +583,7 @@ export class Matrix {
     }
 
     #getCharacterWidth(char) {
-        // Определяем ширину символа по максимальной ширине паттерна
+        // Determine glyph width from max pattern row width.
         const pattern = this.#alphabet[char];
         if (!pattern || pattern.length === 0) {
             return 4;
@@ -653,7 +649,7 @@ export class Matrix {
     }
 
     #getSafeRowOffset(pattern, char, baseY) {
-        // Символы, для которых НЕЛЬЗЯ применять bottom-align
+        // Symbols where bottom-align must NOT be applied
         const NO_BOTTOM_ALIGN = new Set(['-', ':', '.', ';', '_', '+']);
 
         const bottomOffset = NO_BOTTOM_ALIGN.has(char)
@@ -705,17 +701,17 @@ export class Matrix {
             return 0;
         }
 
-        // Выравниваем символ по нижней границе 8-пиксельной строки.
+        // Align symbol to the bottom edge of an 8-pixel row.
         return (this.#LEDS_PER_MODULE - 1) - lastNonEmptyRow;
     }
 
     #getPatternWidth(rowMask) {
-        // Определяем количество значащих битов в маске строки
+        // Count significant bits in row mask
         if (rowMask === 0) {
             return 0;
         }
 
-        // Находим позицию старшего установленного бита
+        // Find highest set bit position
         let width = 0;
         let temp = rowMask;
         while (temp > 0) {
@@ -732,8 +728,8 @@ export class Matrix {
 
     #scrollingText = '';
     #scrollPosition = 16;
-    #scrollIntervalMs = 200;    // миллисекунды между шагами смещения
-    #scrollStepPixels = 1;     // пиксели за один шаг
+    #scrollIntervalMs = 200;    // milliseconds between scroll steps
+    #scrollStepPixels = 1;     // pixels per step
     #scrollFrameCount = 0;
     #scrollAnimationId = null;
     #isScrolling = false;
@@ -754,8 +750,8 @@ export class Matrix {
         }
 
         this.#scrollingText = text;
-        this.#scrollStepPixels = stepPixels;           // пиксели за один шаг
-        this.#scrollIntervalMs = Math.max(10, intervalMs); // миллисекунды между шагами (минимум 10мс)
+        this.#scrollStepPixels = stepPixels;           // pixels per step
+        this.#scrollIntervalMs = Math.max(10, intervalMs); // milliseconds between steps (min 10ms)
         this.#scrollFrameCount = 0;
         this.#isScrolling = true;
 
@@ -802,7 +798,7 @@ export class Matrix {
             return;
         }
 
-        // Вычисляем реальную ширину текста
+        // Compute actual text width
         let textWidth = 0;
         const normalizedText = this.#scrollingText;
         const letterSpacing = 2;
@@ -816,19 +812,19 @@ export class Matrix {
             }
         }
 
-        // Полная дистанция: текст входит справа и выходит полностью влево
+        // Full distance: text enters from right and exits fully to the left
         const totalDistance = 16 + textWidth + 5;
         const maxSteps = Math.ceil(totalDistance / this.#scrollStepPixels);
 
         this.#scrollAnimationId = setInterval(() => {
             if (this.#scrollFrameCount < maxSteps) {
-                // Вычисляем текущую позицию на основе количества шагов
+                // Compute current position from step count
                 const currentX = 16 - (this.#scrollFrameCount * this.#scrollStepPixels);
                 this.drawString(this.#scrollingText, Math.round(currentX), 0);
 
                 this.#scrollFrameCount++;
             } else {
-                // Анимация завершена
+                // Animation finished
                 this.#isScrolling = false;
                 clearInterval(this.#scrollAnimationId);
                 this.#scrollAnimationId = null;
